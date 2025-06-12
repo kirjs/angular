@@ -348,7 +348,6 @@ export class FeedbackComponent {
   })
 
   readonly versions = this.form.product.name().data(VERSIONS_KEY); // This is ResourceRef<number[]>
-
 }
 ```
 
@@ -463,7 +462,12 @@ export class FeedbackComponent {
 > There is currently no `readonly reason`; let us know if there's a use case for
 > having it.
 
-### Array tracking
+### Tracking in array
 
-We've added some rudimentary array tracking under the hood.
-Try moving elements within an array and let us know if that works.
+We need to `track` items in an array to preserve `touched` status when they are
+moved around.
+
+We can't use item instance, because updating a property (using a spread
+operator) would create a new instance change it.
+
+We added basic array tracking by attaching a speaci to objects  

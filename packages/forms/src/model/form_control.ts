@@ -7,6 +7,7 @@
  */
 
 import {ɵWritable as Writable} from '@angular/core';
+import {Subject} from 'rxjs';
 
 import {AsyncValidatorFn, ValidatorFn} from '../directives/validators';
 import {removeListItem} from '../util';
@@ -14,6 +15,7 @@ import {removeListItem} from '../util';
 import {
   AbstractControl,
   AbstractControlOptions,
+  FormHooks,
   isOptionsObj,
   pickAsyncValidators,
   pickValidators,
@@ -444,7 +446,91 @@ function isFormControlState(formState: unknown): formState is FormControlState<u
   );
 }
 
-export const FormControl: ɵFormControlCtor = class FormControl<TValue = any>
+type Field<T> = any;
+
+export function convertOldControlToNew<T>(old: AbstractControl<T>): Field<T> {
+  const value = function () {
+    return old.value;
+  };
+
+  value.set = (value: T) => {
+    old.setValue(value);
+  };
+
+  return (() => ({
+    value,
+    valid() {
+      return old.valid;
+    },
+    errors() {
+      return old.errors;
+    },
+    dirty() {
+      return old.dirty;
+    },
+    pending() {
+      return old.pending;
+    },
+    reset() {
+      old.reset();
+    },
+    markAsDirty() {
+      old.markAsDirty();
+    },
+    markAsTouched() {
+      old.markAsTouched();
+    },
+  })) as Field<T>;
+}
+
+function newToOld<T>(field: Field<T>): AbstractControl<T> {
+  const state = field();
+  return {
+    get value() {
+      return state.value();
+    },
+    get valid() {
+      return state.valid();
+    },
+    get errors() {
+      return state.errors();
+    },
+    get disabled() {
+      return state.disabled();
+    },
+    get dirty() {
+      return state.dirty();
+    },
+    get pending() {
+      return state.pending();
+    },
+    get pristine() {
+      return !state.dirty;
+    },
+    markAsTouched(opts?: {onlySelf?: boolean; emitEvent?: boolean}) {
+      state.markAsTouched();
+    },
+    markAsDirty(opts?: {onlySelf?: boolean; emitEvent?: boolean}) {
+      state.markAsDirty();
+    },
+    setValue(value: T) {
+      state.value.set(value);
+    },
+    reset() {
+      state.reset();
+    },
+    patchValue(value: T) {
+      // TODO
+      state.value.set(value);
+    },
+  } as AbstractControl<T>;
+}
+
+export const FormControl: typeof FormControl2 = function (...args: any[]): any {
+  return newToOld(convertOldControlToNew(new (FormControl2 as any)(...args)));
+} as any;
+
+export const FormControl2: ɵFormControlCtor = class FormControl<TValue = any>
   extends AbstractControl<TValue>
   implements FormControlInterface<TValue>
 {
@@ -590,6 +676,9 @@ export const FormControl: ɵFormControlCtor = class FormControl<TValue = any>
   }
 };
 
+// Set up the prototype chain so FormControl can be used with 'new'
+(FormControl as any).prototype = FormControl2.prototype;
+
 interface UntypedFormControlCtor {
   new (): UntypedFormControl;
 
@@ -611,7 +700,7 @@ interface UntypedFormControlCtor {
  */
 export type UntypedFormControl = FormControl<any>;
 
-export const UntypedFormControl: UntypedFormControlCtor = FormControl;
+export const UntypedFormControl: UntypedFormControlCtor = FormControl as any;
 
 /**
  * @description
@@ -620,4 +709,4 @@ export const UntypedFormControl: UntypedFormControlCtor = FormControl;
  * @publicApi
  */
 export const isFormControl = (control: unknown): control is FormControl =>
-  control instanceof FormControl;
+  control instanceof FormControl2;

@@ -96,9 +96,10 @@ describe('pattern validator', () => {
       expect(f.name().errors()).toEqual([]);
       patternSignal.set('meow');
       expect(f.name().errors()).toEqual([
-        jasmine.objectContaining({
+        {
           kind: 'pattern',
-        }),
+          message: 'xxxx',
+        },
       ]);
 
       patternSignal.set(undefined);

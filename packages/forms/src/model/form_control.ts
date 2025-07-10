@@ -6,7 +6,7 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import {ɵWritable as Writable} from '@angular/core';
+import {computed, Signal, ɵWritable as Writable} from '@angular/core';
 import {Subject} from 'rxjs';
 
 import {AsyncValidatorFn, ValidatorFn} from '../directives/validators';
@@ -20,6 +20,7 @@ import {
   pickAsyncValidators,
   pickValidators,
 } from './abstract_model';
+import {toObservable} from '@angular/core/rxjs-interop';
 
 /**
  * FormControlState is a boxed form value. It is an object with a `value` key and a `disabled` key.
@@ -523,6 +524,23 @@ function newToOld<T>(field: Field<T>): AbstractControl<T> {
       // TODO
       state.value.set(value);
     },
+    statusChanges: toObservable(
+      computed(() => {
+        if (state.disabled()) {
+          return 'DISABLED';
+        }
+
+        if (state.pending()) {
+          return 'PENDING';
+        }
+
+        if (state.valid()) {
+          return 'VALID';
+        }
+
+        return 'INVALID';
+      }),
+    ),
   } as AbstractControl<T>;
 }
 

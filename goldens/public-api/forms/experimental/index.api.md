@@ -6,6 +6,7 @@
 
 import { AbstractControl } from '@angular/forms';
 import { ControlValueAccessor } from '@angular/forms';
+import { DestroyableInjector } from '@angular/core';
 import { ElementRef } from '@angular/core';
 import { HttpResourceOptions } from '@angular/common/http';
 import { HttpResourceRequest } from '@angular/common/http';
@@ -165,15 +166,17 @@ export type Field<TValue, TKey extends string | number = string | number> = (() 
 export type FieldContext<TValue, TPathKind extends PathKind = PathKind.Root> = TPathKind extends PathKind.Item ? ItemFieldContext<TValue> : TPathKind extends PathKind.Child ? ChildFieldContext<TValue> : RootFieldContext<TValue>;
 
 // @public
-export type FieldPath<TValue, TPathKind extends PathKind = PathKind.Root> = {
-    [ɵɵTYPE]: [TValue, TPathKind];
+export type FieldPath<TValue, TPathKind extends PathKind = PathKind.Root, TUnwrappedValue = TValue> = {
+    [ɵɵTYPE]: [TValue, TPathKind, TUnwrappedValue];
 } & (TValue extends any[] ? {} : TValue extends Record<PropertyKey, any> ? {
     [K in keyof TValue]: FieldPath<TValue[K], PathKind.Child>;
 } : {});
 
 // @public
 export interface FieldState<TValue, TKey extends string | number = string | number> {
+    readonly control: ControlWhenPresent<TValue>;
     readonly controls: Signal<readonly Control<unknown>[]>;
+    readonly controlValue: ControlValueWhenPresent<TValue>;
     readonly dirty: Signal<boolean>;
     readonly disabled: Signal<boolean>;
     readonly disabledReasons: Signal<readonly DisabledReason[]>;
@@ -217,6 +220,7 @@ export interface FormCheckboxControl extends BaseUiControl {
 
 // @public
 export interface FormOptions {
+    adapter?: FieldAdapter;
     injector?: Injector;
     // (undocumented)
     name?: string;
@@ -421,7 +425,7 @@ export const REQUIRED: AggregateProperty<boolean, boolean>;
 export function required<TValue, TPathKind extends PathKind = PathKind.Root>(path: FieldPath<TValue, TPathKind>, config?: BaseValidatorConfig<TValue, TPathKind> & {
     emptyPredicate?: (value: TValue) => boolean;
     when?: NoInfer<LogicFn<TValue, boolean, TPathKind>>;
-}): void;
+}, ..._rest: TValue extends AbstractControl<any> ? [never] : []): void;
 
 // @public
 export class RequiredValidationError extends _NgValidationError {
@@ -431,6 +435,7 @@ export class RequiredValidationError extends _NgValidationError {
 
 // @public
 export interface RootFieldContext<TValue> {
+    readonly controlValueOf: <P extends AbstractControl<unknown>>(p: FieldPath<P>) => P['value'];
     readonly field: Field<TValue>;
     readonly fieldOf: <P>(p: FieldPath<P>) => Field<P>;
     readonly state: FieldState<TValue>;

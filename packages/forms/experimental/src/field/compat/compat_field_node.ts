@@ -17,8 +17,6 @@ import {CompatFieldNodeOptions} from './compat_structure';
 export class CompatFieldNode extends FieldNode {
   constructor(public readonly options: CompatFieldNodeOptions) {
     super(options);
-    this.control = this.options.control as never;
-    this.controlValue = this.structure.value as never;
   }
 }
 

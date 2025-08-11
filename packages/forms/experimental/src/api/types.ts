@@ -10,7 +10,6 @@ import {Signal, WritableSignal} from '@angular/core';
 import type {Control} from '../controls/control';
 import {AggregateProperty, Property} from './property';
 import type {ValidationError, WithField} from './validation_errors';
-import {AbstractControl} from '@angular/forms';
 
 /**
  * Symbol used to retain generic type information when it would otherwise be lost.
@@ -238,15 +237,6 @@ export interface FieldState<TValue, TKey extends string | number = string | numb
    * A signal containing the current errors for the field.
    */
   readonly errors: Signal<ValidationError[]>;
-  /**
-   * A signal only present for fields of AbstractControl<any>, returns the control.
-   */
-  readonly control: ControlWhenPresent<TValue>;
-  /**
-   * A signal only present for fields of AbstractControl<any>.
-   * Returns reactive control value.
-   */
-  readonly controlValue: ControlValueWhenPresent<TValue>;
 
   /**
    * A signal containing the current errors for the field.
@@ -347,12 +337,8 @@ export interface FieldState<TValue, TKey extends string | number = string | numb
  * @template TValue The type of the data which the form is wrapped around.
  * @template TPathKind The kind of path (root field, child field, or item of an array)
  */
-export type FieldPath<
-  TValue,
-  TPathKind extends PathKind = PathKind.Root,
-  TUnwrappedValue = TValue,
-> = {
-  [ɵɵTYPE]: [TValue, TPathKind, TUnwrappedValue];
+export type FieldPath<TValue, TPathKind extends PathKind = PathKind.Root> = {
+  [ɵɵTYPE]: [TValue, TPathKind];
 } & (TValue extends any[]
   ? {}
   : TValue extends Record<PropertyKey, any>
@@ -439,9 +425,6 @@ export type FieldContext<
     ? ChildFieldContext<TValue>
     : RootFieldContext<TValue>;
 
-type ControlWhenPresent<T> = T extends AbstractControl<unknown> ? Signal<T> : never;
-type ControlValueWhenPresent<T> = T extends AbstractControl<infer V> ? WritableSignal<V> : never;
-
 /**
  * The base field context that is available for all fields.
  */
@@ -452,8 +435,6 @@ export interface RootFieldContext<TValue> {
   readonly state: FieldState<TValue>;
   /** The current field. */
   readonly field: Field<TValue>;
-  /** Gets the value of FormControl for compat forms. */
-  readonly controlValueOf: <P extends AbstractControl<unknown>>(p: FieldPath<P>) => P['value'];
   /** Gets the value of the field represented by the given path. */
   readonly valueOf: <P>(p: FieldPath<P>) => P;
   /** Gets the state of the field represented by the given path. */

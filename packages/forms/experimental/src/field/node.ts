@@ -57,13 +57,6 @@ export class FieldNode implements FieldState<unknown> {
     return (this._context ??= new FieldNodeContext(this));
   }
 
-  control: never = (() => {
-    throw new Error('This field does not have a control');
-  }) as never;
-
-  controlValue: never = (() => {
-    throw new Error('This field does not have a control');
-  }) as never;
   /**
    * Proxy to this node which allows navigation of the form graph below it.
    */

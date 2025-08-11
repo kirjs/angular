@@ -7,11 +7,10 @@
  */
 
 import {ApplicationRef, Injector, signal} from '@angular/core';
-import {disabled, form, hidden, required, submit, validate} from '../../public_api';
+import {disabled, form, hidden, required, submit} from '../../public_api';
 import {TestBed} from '@angular/core/testing';
 import {FormControl, FormGroup, Validators} from '@angular/forms';
 
-import {ValidationError} from '@angular/forms/experimental';
 import {CompatFieldAdapter} from '../../src/field/compat/compat_field_adapter';
 import {ReactiveValidationError} from '../../src/field/compat/compat_validation_error';
 
@@ -26,35 +25,6 @@ describe('Forms compat', () => {
    * - What would be a good way to not let rules take values with FormControls?
    *
    */
-  it('should not error on a valid value', () => {
-    const cat = signal({
-      name: 'pirojok-the-cat',
-      age: new FormControl<number>(5, {nonNullable: true}),
-    });
-
-    const f = form(cat, {
-      injector: TestBed.inject(Injector),
-      adapter: new CompatFieldAdapter(),
-    });
-
-    const age = f.age();
-    expect(age.controlValue()).toBe(5);
-    expect(f.age().valid()).toBe(true);
-  });
-
-  it('does not work without injector', () => {
-    const cat = signal({
-      name: 'pirojok-the-cat',
-      age: new FormControl<number>(5, {nonNullable: true}),
-    });
-
-    const f = form(cat, {
-      injector: TestBed.inject(Injector),
-    });
-
-    const age = f.age();
-    expect(() => age.controlValue()).toThrowError();
-  });
 
   it('should handle and propagate errors', () => {
     const control = new FormControl(5, Validators.min(3));
@@ -67,12 +37,9 @@ describe('Forms compat', () => {
       adapter: new CompatFieldAdapter(),
     });
 
-    expect(f.age().controlValue()).toBe(5);
     expect(f.age().valid()).toBe(true);
     control.setValue(2);
-    expect(f.age().controlValue()).toBe(2);
     expect(f.age().valid()).toBe(false);
-    f.age().controlValue.set(100);
   });
 
   it('can be in root', () => {
@@ -83,36 +50,7 @@ describe('Forms compat', () => {
       adapter: new CompatFieldAdapter(),
     });
 
-    expect(f().controlValue()).toBe('meow');
     expect(f().valid()).toBe(true);
-  });
-
-  it('picks up the value from a new form control', () => {
-    const control = new FormControl(5, Validators.min(3));
-    const cat = signal({
-      name: 'pirojok-the-cat',
-      age: control,
-    });
-
-    const f = form(cat, {
-      injector: TestBed.inject(Injector),
-      adapter: new CompatFieldAdapter(),
-    });
-
-    expect(f.age().controlValue()).toBe(5);
-    f().value.set({age: new FormControl(10), name: 'lol'});
-    expect(f.age().controlValue()).toBe(10);
-
-    const fc = new FormControl(25);
-    cat.set({
-      name: 'meow-the-cat',
-      age: fc,
-    });
-    expect(f.age().controlValue()).toBe(25);
-    expect(f().value()).toEqual({
-      name: 'meow-the-cat',
-      age: fc,
-    });
   });
 
   describe('validation', () => {
@@ -371,22 +309,6 @@ describe('Forms compat', () => {
   });
 
   describe('exposing control', () => {
-    it('works for control', () => {
-      const control = new FormControl(5, Validators.min(3));
-      const cat = signal({
-        name: 'pirojok-the-cat',
-        address: {
-          house: control,
-        },
-      });
-      const f = form(cat, {
-        injector: TestBed.inject(Injector),
-        adapter: new CompatFieldAdapter(),
-      });
-
-      expect(f.address.house().control()).toBe(control);
-    });
-
     it('fails for regular values', () => {
       const control = new FormControl(5, Validators.min(3));
       const cat = signal({
@@ -403,93 +325,6 @@ describe('Forms compat', () => {
       // @ts-expect-error: meow
       expect(() => f.name().control()).toThrowError();
     });
-  });
-
-  it('allows to use form control values for validation', () => {
-    const control = new FormControl(5, {nonNullable: true, validators: [Validators.min(3)]});
-    const cat = signal({
-      name: 'pirojok-the-cat',
-      age: control,
-    });
-    const f = form(
-      cat,
-      (path) => {
-        required(path.name);
-
-        validate(path.name, ({controlValueOf}) => {
-          return (controlValueOf(path.age) as unknown as number) < 8
-            ? ValidationError.custom({kind: 'too small'})
-            : undefined;
-        });
-      },
-      {
-        injector: TestBed.inject(Injector),
-        adapter: new CompatFieldAdapter(),
-      },
-    );
-
-    expect(f.name().valid()).toBe(false);
-    expect(f.name().errors()).toEqual([ValidationError.custom({kind: 'too small'})]);
-
-    control.setValue(10);
-    expect(f.name().valid()).toBe(true);
-    f.age().controlValue.set(4);
-    expect(f.name().valid()).toBe(false);
-  });
-
-  it('disallows passing a path with a FormControl on the type level', () => {
-    const control = new FormControl(5, {nonNullable: true, validators: [Validators.min(3)]});
-    const cat = signal({
-      name: 'pirojok-the-cat',
-      age: control,
-    });
-    form(
-      cat,
-      (path) => {
-        // @ts-expect-error
-        required(path.age);
-        // TODO: Finish the rest of the rules.
-        validate(path.age, () => {
-          return undefined;
-        });
-      },
-      {
-        injector: TestBed.inject(Injector),
-        adapter: new CompatFieldAdapter(),
-      },
-    );
-  });
-
-  it('allows to use form control values for validation', () => {
-    const control = new FormControl(5, {nonNullable: true, validators: [Validators.min(3)]});
-    const cat = signal({
-      name: 'pirojok-the-cat',
-      age: control,
-    });
-    const f = form(
-      cat,
-      (path) => {
-        required(path.name);
-
-        validate(path.name, ({controlValueOf}) => {
-          return controlValueOf(path.age) < 8
-            ? ValidationError.custom({kind: 'too small'})
-            : undefined;
-        });
-      },
-      {
-        injector: TestBed.inject(Injector),
-        adapter: new CompatFieldAdapter(),
-      },
-    );
-
-    expect(f.name().valid()).toBe(false);
-    expect(f.name().errors()).toEqual([ValidationError.custom({kind: 'too small'})]);
-
-    control.setValue(10);
-    expect(f.name().valid()).toBe(true);
-    f.age().controlValue.set(4);
-    expect(f.name().valid()).toBe(false);
   });
 
   describe('validation', () => {
@@ -522,7 +357,7 @@ describe('Forms compat', () => {
       expect(f.age().pending()).toBeFalse();
       expect(f.age().valid()).toBeTrue();
 
-      f.age().control().setValue(18);
+      formControl.setValue(18);
 
       expect(f.age().pending()).toBeTrue();
       expect(f.age().valid()).toBeFalse();
@@ -538,78 +373,7 @@ describe('Forms compat', () => {
     });
   });
 
-  describe('arrays', () => {
-    it('works with removing an element and bringing it back', async () => {
-      const validCat = new FormControl('valid cat', {nonNullable: true});
-      const invalidCat = new FormControl('invalid cat', {
-        nonNullable: true,
-        validators: [Validators.maxLength(5)],
-      });
-
-      const cats = signal({
-        cats: [validCat, invalidCat],
-      });
-
-      const f = form(cats, {
-        injector: TestBed.inject(Injector),
-        adapter: new CompatFieldAdapter(),
-      });
-
-      expect(f.cats[0]().controlValue()).toBe('valid cat');
-      expect(f.cats[1]().controlValue()).toBe('invalid cat');
-
-      expect(f.cats[0]().valid()).withContext('first cat is valid').toBe(true);
-      expect(f.cats[1]().valid()).withContext('second cat is not valid').toBe(false);
-
-      expect(f().valid())
-        .withContext('form is not valid because child validator fails')
-        .toBe(false);
-
-      cats.set({cats: []});
-      expect(f().valid())
-        .withContext('form is valid because invalid control has been removed')
-        .toBe(true);
-
-      cats.set({cats: [validCat]});
-      expect(f().valid())
-        .withContext('form is valid because only valid control was brought back')
-        .toBe(true);
-
-      expect(f.cats[0]().controlValue()).toBe('valid cat');
-      expect(f.cats[1]).toBe(undefined);
-
-      cats.set({cats: [invalidCat]});
-      expect(f().valid())
-        .withContext('form is invalid again, because invalid child is back')
-        .toBe(false);
-
-      expect(f.cats[0]().controlValue()).toBe('invalid cat');
-      expect(f.cats[1]).toBe(undefined);
-    });
-  });
-
   describe('FormGroup', () => {
-    it('is supported', () => {
-      const cat = signal(
-        new FormGroup({
-          name: new FormControl('pirojok-the-cat'),
-          age: new FormControl(10),
-        }),
-      );
-
-      const f = form(cat, {
-        injector: TestBed.inject(Injector),
-        adapter: new CompatFieldAdapter(),
-      });
-
-      expect(f().controlValue()).toEqual({
-        name: 'pirojok-the-cat',
-        age: 10,
-      });
-
-      expect(f().valid()).toEqual(true);
-    });
-
     it('is propagates validity', () => {
       const cat = signal(
         new FormGroup({

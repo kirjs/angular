@@ -38,7 +38,7 @@ import {
   PATTERN,
   REQUIRED,
 } from '../api/property';
-import type {Field} from '../api/types';
+import {Field, FieldState} from '../api/types';
 import type {FieldNode} from '../field/node';
 import {
   privateGetComponentInstance,
@@ -189,15 +189,15 @@ export class Control<T> {
     input.addEventListener('input', () => {
       switch (inputType) {
         case 'checkbox':
-          this.state().value.set((input as HTMLInputElement).checked as T);
+          (this.state() as FieldState<T>).value.set((input as HTMLInputElement).checked as T);
           break;
         case 'radio':
           // The `input` event only fires when a radio button becomes selected, so write its `value`
           // into the state.
-          this.state().value.set((input as HTMLInputElement).value as T);
+          (this.state() as FieldState<T>).value.set((input as HTMLInputElement).value as T);
           break;
         default:
-          this.state().value.set(input.value as T);
+          (this.state() as FieldState<T>).value.set(input.value as T);
           break;
       }
       this.state().markAsDirty();
@@ -263,7 +263,7 @@ export class Control<T> {
 
   /** Set up state synchronization between the field and a ControlValueAccessor. */
   private setupControlValueAccessor(cva: ControlValueAccessor): void {
-    cva.registerOnChange((value: T) => this.state().value.set(value));
+    cva.registerOnChange((value: T) => (this.state() as FieldState<T>).value.set(value));
     cva.registerOnTouched(() => this.state().markAsTouched());
 
     this.maybeSynchronize(
@@ -293,11 +293,15 @@ export class Control<T> {
     if (isFormValueControl(cmp)) {
       // <custom-input [(value)]="state().value">
       this.maybeSynchronize(() => this.state().value(), withInput(cmp.value));
-      cleanupValue = cmp.value.subscribe((newValue) => this.state().value.set(newValue as T));
+      cleanupValue = cmp.value.subscribe((newValue) =>
+        (this.state() as FieldState<T>).value.set(newValue as T),
+      );
     } else if (isFormCheckboxControl(cmp)) {
       // <custom-checkbox [(checked)]="state().value" />
       this.maybeSynchronize(() => this.state().value() as boolean, withInput(cmp.checked));
-      cleanupValue = cmp.checked.subscribe((newValue) => this.state().value.set(newValue as T));
+      cleanupValue = cmp.checked.subscribe((newValue) =>
+        (this.state() as FieldState<T>).value.set(newValue as T),
+      );
     } else {
       throw new Error(`Unknown custom control subtype`);
     }

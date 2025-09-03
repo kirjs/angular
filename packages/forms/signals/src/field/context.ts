@@ -7,7 +7,7 @@
  */
 
 import {computed, Signal, untracked, WritableSignal} from '@angular/core';
-import {Field, FieldContext, FieldPath, FieldState} from '../api/types';
+import {Field, FieldContext, FieldPath, FieldState, UnwrapControl} from '../api/types';
 import {FieldPathNode} from '../schema/path_node';
 import {isArray} from '../util/type_guards';
 import type {FieldNode} from './node';
@@ -109,5 +109,5 @@ export class FieldNodeContext implements FieldContext<unknown> {
 
   readonly fieldOf = <P>(p: FieldPath<P>) => this.resolve(p);
   readonly stateOf = <P>(p: FieldPath<P>) => this.resolve(p)();
-  readonly valueOf = <P>(p: FieldPath<P>) => this.resolve(p)().value();
+  readonly valueOf = <P>(p: FieldPath<P>) => this.resolve(p)().value() as UnwrapControl<P>;
 }

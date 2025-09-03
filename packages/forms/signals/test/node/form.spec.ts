@@ -8,7 +8,8 @@
 
 import {inject, Injector, runInInjectionContext, signal} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
-import {form, required, schema, validate} from '../../public_api';
+import {Field, form, required, schema, validate} from '../../public_api';
+import {FormControl} from '@angular/forms';
 
 describe('form', () => {
   describe('injection context', () => {
@@ -49,6 +50,47 @@ describe('form', () => {
         },
         {injector},
       );
+    });
+
+    it('TBD spec', () => {
+      const injector = TestBed.inject(Injector);
+
+      const formControl = new FormControl('123', {nonNullable: true});
+      const model = signal({a: formControl, b: 3});
+      const f = form(
+        model,
+        (p) => {
+          validate(p.a, ({value, valueOf, stateOf}) => {
+            // Value works
+            expect(value()).toEqual('123');
+            // Value of works
+            expect(valueOf(p.a)).toEqual('123');
+            expect(stateOf(p.a).value()).toEqual('123');
+          });
+        },
+        {injector},
+      );
+
+      const a = f.a();
+
+      // We can get and set value
+      expect(a.value()).toEqual('123');
+      a.value.set('333');
+      expect(a.value()).toEqual('333');
+
+      // We can get control only for fields with FormControl
+      expect(a.control).toEqual(formControl);
+      // @ts-expect-error
+      expect(f.b().control).toEqual(formControl);
+
+      const setValue = <T>(field: Field<T>, value: T) => {
+        // We can't do this anymore
+        // @ts-expect-error
+        field().value.set(value);
+
+        // @ts-expect-error
+        field().value.set(field().value());
+      };
     });
 
     it('uses provided provided injection context over the one it is run in', () => {

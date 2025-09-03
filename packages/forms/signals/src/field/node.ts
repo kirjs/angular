@@ -42,6 +42,7 @@ import type {FieldAdapter} from './field_adapter';
  * the responsibilities.
  */
 export class FieldNode implements FieldState<unknown> {
+  readonly control: unknown;
   readonly structure: FieldNodeStructure;
   readonly validationState: ValidationState;
   readonly propertyState: FieldPropertyState;

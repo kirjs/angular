@@ -8,7 +8,7 @@
 
 import {computed, Injector, signal, type Signal} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
-import {customError} from '../../public_api';
+import {customError, FieldState} from '../../public_api';
 import {disabled, validate} from '../../src/api/logic';
 import {applyEach, applyWhen, applyWhenValue, form, schema} from '../../src/api/structure';
 import type {Field, Schema} from '../../src/api/types';
@@ -23,7 +23,9 @@ function narrowed<TValue, TNarrowed extends TValue>(
   guard: (value: TValue) => value is TNarrowed,
 ): Signal<Field<TNarrowed> | undefined> {
   return computed(
-    () => field && (guard(field().value()) ? (field as Field<TNarrowed>) : undefined),
+    () =>
+      field &&
+      (guard((field() as FieldState<TValue>).value()) ? (field as Field<TNarrowed>) : undefined),
   );
 }
 

@@ -10,6 +10,7 @@ import {Signal, WritableSignal} from '@angular/core';
 import type {Control} from '../controls/control';
 import {AggregateProperty, Property} from './property';
 import type {ValidationError, WithOptionalField, WithoutField} from './validation_errors';
+import {AbstractControl} from '@angular/forms';
 
 /**
  * Symbol used to retain generic type information when it would otherwise be lost.
@@ -136,6 +137,11 @@ export type AsyncValidationResult<E extends ValidationError = ValidationError> =
   | ValidationResult<E>
   | 'pending';
 
+export type UnwrapInState<TValue, TKey extends string | number = string | number> = [
+  TValue,
+] extends [AbstractControl<unknown>]
+  ? InteropFieldState<TValue, TKey>
+  : FieldState<TValue, TKey>;
 /**
  * An object that represents a single field in a form. This includes both primitive value fields
  * (e.g. fields that contain a `string` or `number`), as well as "grouping fields" that contain
@@ -146,7 +152,7 @@ export type AsyncValidationResult<E extends ValidationError = ValidationError> =
  * @template TValue The type of the data which the field is wrapped around.
  * @template TKey The type of the property key which this field resides under in its parent.
  */
-export type Field<TValue, TKey extends string | number = string | number> = (() => FieldState<
+export type Field<TValue, TKey extends string | number = string | number> = (() => UnwrapInState<
   TValue,
   TKey
 >) &
@@ -191,6 +197,11 @@ export type ReadonlyArrayLike<T> = Pick<
 export type MaybeField<TValue, TKey extends string | number = string | number> =
   | (TValue & undefined)
   | Field<Exclude<TValue, undefined>, TKey>;
+
+export interface InteropFieldState<TControl, TKey extends string | number = string | number>
+  extends FieldState<UnwrapControl<TControl>, TKey> {
+  readonly control: Signal<TControl>;
+}
 
 /**
  * Contains all of the state (e.g. value, statuses, etc.) associated with a `Field`, exposed as
@@ -451,20 +462,22 @@ export type FieldContext<
     ? ChildFieldContext<TValue>
     : RootFieldContext<TValue>;
 
+export type UnwrapControl<TValue> = TValue extends AbstractControl<infer R> ? R : TValue;
+
 /**
  * The base field context that is available for all fields.
  */
 export interface RootFieldContext<TValue> {
   /** A signal containing the value of the current field. */
-  readonly value: Signal<TValue>;
+  readonly value: Signal<UnwrapControl<TValue>>;
   /** The state of the current field. */
-  readonly state: FieldState<TValue>;
+  readonly state: UnwrapInState<TValue>;
   /** The current field. */
   readonly field: Field<TValue>;
   /** Gets the value of the field represented by the given path. */
-  readonly valueOf: <P>(p: FieldPath<P>) => P;
+  readonly valueOf: <P>(p: FieldPath<P>) => UnwrapControl<P>;
   /** Gets the state of the field represented by the given path. */
-  readonly stateOf: <P>(p: FieldPath<P>) => FieldState<P>;
+  readonly stateOf: <P>(p: FieldPath<P>) => UnwrapInState<P>;
   /** Gets the field represented by the given path. */
   readonly fieldOf: <P>(p: FieldPath<P>) => Field<P>;
 }

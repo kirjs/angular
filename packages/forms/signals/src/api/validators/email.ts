@@ -6,7 +6,8 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import {validate} from '../logic';
+import {aggregateMetadata, validate} from '../logic';
+import {metadata, PATTERN} from '../metadata';
 import {SchemaPath, SchemaPathRules, PathKind} from '../types';
 import {emailError} from '../validation_errors';
 import {BaseValidatorConfig, getOption, isEmpty} from './util';

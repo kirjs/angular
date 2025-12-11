@@ -6,7 +6,15 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import {signal, WritableSignal, EventEmitter, Injector, effect} from '@angular/core';
+import {
+  ApplicationRef,
+  EventEmitter,
+  Injector,
+  WritableSignal,
+  effect,
+  resource,
+  signal,
+} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 import {
   AbstractControl,
@@ -16,7 +24,7 @@ import {
   ValidationErrors,
 } from '@angular/forms';
 import {compatForm} from '../../../compat';
-import {disabled, required} from '../../../public_api';
+import {customError, disabled, required, validateAsync, ValidationError} from '../../../public_api';
 import {SchemaFn} from '../../../src/api/types';
 
 type ValueUpdateOptions = {onlySelf?: boolean; emitEvent?: boolean};
@@ -161,8 +169,7 @@ class SignalFormControl<T> extends AbstractControl {
   }
 
   override get pending(): boolean {
-    // TODO: test
-    return false; // this.field().pending(); // If available
+    return this.field().pending();
   }
 
   override get disabled(): boolean {
@@ -299,6 +306,58 @@ describe('SignalFormControl', () => {
     expect(statuses).toEqual(['VALID', 'INVALID', 'VALID']);
   });
 
+  it('should expose pending status for async validators', async () => {
+    const value = signal('initial');
+    const pendingResolvers: Array<(errors: ValidationError[]) => void> = [];
+    const resolveNext = (errors: ValidationError[]) => {
+      TestBed.flushEffects();
+      expect(pendingResolvers.length).toBeGreaterThan(0);
+      pendingResolvers.shift()!(errors);
+    };
+    const form = SignalFormControlFactory(value, (p) => {
+      validateAsync(p, {
+        params: ({value}) => value(),
+        factory: (params) =>
+          resource({
+            params,
+            loader: () =>
+              new Promise<ValidationError[]>((resolve) => {
+                pendingResolvers.push(resolve);
+              }),
+          }),
+        onSuccess: (errors) => errors,
+        onError: () => null,
+      });
+    });
+    const appRef = TestBed.inject(ApplicationRef);
+
+    expect(form.pending).toBe(true);
+    expect(form.status).toBe('PENDING');
+
+    resolveNext([]);
+    await appRef.whenStable();
+    TestBed.flushEffects();
+
+    expect(form.pending).toBe(false);
+    expect(form.status).toBe('VALID');
+
+    form.setValue('invalid');
+    TestBed.flushEffects();
+
+    expect(form.pending).toBe(true);
+    expect(form.status).toBe('PENDING');
+
+    resolveNext([customError({kind: 'async-invalid'})]);
+    await appRef.whenStable();
+    TestBed.flushEffects();
+
+    expect(form.pending).toBe(false);
+    expect(form.status).toBe('INVALID');
+    expect(form.errors?.['async-invalid']).toEqual(
+      jasmine.objectContaining({kind: 'async-invalid'}),
+    );
+  });
+
   it('should support disabled via rules', () => {
     const value = signal(10);
     const form = SignalFormControlFactory(value, (p) => {
@@ -348,6 +407,27 @@ describe('SignalFormControl', () => {
       form.setValue(20);
 
       expect(group.value).toEqual({n: 20});
+    });
+
+    it('should reflect validity changes', () => {
+      const value = signal<number | undefined>(10);
+      const form = SignalFormControlFactory(value, (p) => required(p));
+      const group = new FormGroup({
+        n: form,
+      });
+
+      expect(group.status).toBe('VALID');
+
+      const statuses: FormControlStatus[] = [];
+      group.statusChanges.subscribe((status) => statuses.push(status));
+
+      form.setValue(undefined);
+      expect(group.status).toBe('INVALID');
+
+      form.setValue(10);
+      expect(group.status).toBe('VALID');
+
+      expect(statuses).toEqual(['INVALID', 'VALID']);
     });
   });
 });

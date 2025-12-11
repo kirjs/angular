@@ -8,13 +8,22 @@
 
 import {signal, WritableSignal, EventEmitter, Injector, effect} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
-import {AbstractControl, FormControlStatus, FormGroup, ValidationErrors} from '@angular/forms';
-import {compatForm} from '../../../compat/src/api/compat_form';
+import {
+  AbstractControl,
+  FormArray,
+  FormControlStatus,
+  FormGroup,
+  ValidationErrors,
+} from '@angular/forms';
+import {compatForm} from '../../../compat';
 import {disabled, required} from '../../../public_api';
 import {SchemaFn} from '../../../src/api/types';
 
+type ValueUpdateOptions = {onlySelf?: boolean; emitEvent?: boolean};
+
 class SignalFormControl<T> extends AbstractControl {
   private field;
+  private pendingParentNotifications = 0;
 
   constructor(
     public source: WritableSignal<T>,
@@ -58,30 +67,71 @@ class SignalFormControl<T> extends AbstractControl {
     // Real implementation would use effects to emit valueChanges/statusChanges
     effect(
       () => {
-        (this.valueChanges as EventEmitter<T>).emit(this.source());
+        const currentValue = this.source();
+
+        if (this.pendingParentNotifications > 0) {
+          this.pendingParentNotifications--;
+        } else {
+          this.parent?.updateValueAndValidity({sourceControl: this} as any);
+        }
+
+        (this.valueChanges as EventEmitter<T>).emit(currentValue);
       },
       {injector},
     );
     effect(
       () => {
-        (this.statusChanges as EventEmitter<FormControlStatus>).emit(this.status);
+        const status = this.status;
+        (this.statusChanges as EventEmitter<FormControlStatus>).emit(status);
       },
       {injector},
     );
   }
 
-  override setValue(value: any, options?: Object): void {
+  override setValue(value: any, options?: ValueUpdateOptions): void {
+    const parent = this.prepareParentPropagation(options);
     this.source.set(value);
+    this.notifyParent(parent, options);
   }
 
-  override patchValue(value: any, options?: Object): void {
+  override patchValue(value: any, options?: ValueUpdateOptions): void {
+    const parent = this.prepareParentPropagation(options);
     this.source.set(value);
+    this.notifyParent(parent, options);
   }
 
-  override reset(value?: any, options?: Object): void {
+  override reset(value?: any, options?: ValueUpdateOptions): void {
     if (value !== undefined) {
+      const parent = this.prepareParentPropagation(options);
       this.source.set(value);
+      this.notifyParent(parent, options);
+    } else if (!options?.onlySelf) {
+      this.parent?.updateValueAndValidity({
+        emitEvent: options?.emitEvent,
+        sourceControl: this,
+      } as any);
     }
+  }
+
+  private prepareParentPropagation(options?: ValueUpdateOptions): FormGroup | FormArray | null {
+    if (options?.onlySelf) {
+      this.pendingParentNotifications++;
+      return null;
+    }
+    const parent = this.parent;
+    if (parent) {
+      this.pendingParentNotifications++;
+      return parent;
+    }
+    return null;
+  }
+
+  private notifyParent(parent: FormGroup | FormArray | null, options?: ValueUpdateOptions): void {
+    if (!parent) return;
+    parent.updateValueAndValidity({
+      emitEvent: options?.emitEvent,
+      sourceControl: this,
+    } as any);
   }
 
   override updateValueAndValidity(opts?: Object): void {}
@@ -289,6 +339,15 @@ describe('SignalFormControl', () => {
       const group = new FormGroup({
         n: form,
       });
+
+      expect(group.value).toEqual({n: 10});
+
+      const emissions: any[] = [];
+      group.valueChanges.subscribe((v) => emissions.push(v));
+
+      form.setValue(20);
+
+      expect(group.value).toEqual({n: 20});
     });
   });
 });

@@ -17,12 +17,21 @@ import {
 
 import {compatForm} from '../api/compat_form';
 import {SchemaFn} from '../../../src/api/types';
+import {removeListItem} from '../../../../src/util';
 
-export type ValueUpdateOptions = {onlySelf?: boolean; emitEvent?: boolean};
+export type ValueUpdateOptions = {
+  onlySelf?: boolean;
+  emitEvent?: boolean;
+  emitModelToViewChange?: boolean;
+  emitViewToModelChange?: boolean;
+};
 
 export class SignalFormControl<T> extends AbstractControl {
   private field;
   private pendingParentNotifications = 0;
+  private onChangeCallbacks: Array<(value?: any, emitModelEvent?: boolean) => void> = [];
+  private onDisabledChangeCallbacks: Array<(isDisabled: boolean) => void> = [];
+  private lastDisabledState: boolean | undefined;
 
   constructor(
     public source: WritableSignal<T>,
@@ -78,6 +87,13 @@ export class SignalFormControl<T> extends AbstractControl {
       () => {
         const status = this.status;
         (this.statusChanges as EventEmitter<FormControlStatus>).emit(status);
+        const isDisabled = this.disabled;
+        if (this.lastDisabledState === undefined) {
+          this.lastDisabledState = isDisabled;
+        } else if (this.lastDisabledState !== isDisabled) {
+          this.lastDisabledState = isDisabled;
+          this.onDisabledChangeCallbacks.forEach((fn) => fn(isDisabled));
+        }
       },
       {injector},
     );
@@ -87,12 +103,14 @@ export class SignalFormControl<T> extends AbstractControl {
     const parent = this.prepareParentPropagation(options);
     this.source.set(value);
     this.notifyParent(parent, options);
+    this.emitModelChanges(value, options);
   }
 
   override patchValue(value: any, options?: ValueUpdateOptions): void {
     const parent = this.prepareParentPropagation(options);
     this.source.set(value);
     this.notifyParent(parent, options);
+    this.emitModelChanges(value, options);
   }
 
   override reset(value?: any, options?: ValueUpdateOptions): void {
@@ -100,6 +118,7 @@ export class SignalFormControl<T> extends AbstractControl {
       const parent = this.prepareParentPropagation(options);
       this.source.set(value);
       this.notifyParent(parent, options);
+      this.emitModelChanges(value, options);
     } else if (!options?.onlySelf) {
       this.parent?.updateValueAndValidity({
         emitEvent: options?.emitEvent,
@@ -127,6 +146,28 @@ export class SignalFormControl<T> extends AbstractControl {
       emitEvent: options?.emitEvent,
       sourceControl: this,
     } as any);
+  }
+
+  private emitModelChanges(value: any, options?: ValueUpdateOptions): void {
+    if (options?.emitModelToViewChange === false) return;
+    const emitModelEvent = options?.emitViewToModelChange !== false;
+    this.onChangeCallbacks.forEach((fn) => fn(value, emitModelEvent));
+  }
+
+  registerOnChange(fn: (value?: any, emitModelEvent?: boolean) => void): void {
+    this.onChangeCallbacks.push(fn);
+  }
+
+  _unregisterOnChange(fn: (value?: any, emitModelEvent?: boolean) => void): void {
+    removeListItem(this.onChangeCallbacks, fn);
+  }
+
+  registerOnDisabledChange(fn: (isDisabled: boolean) => void): void {
+    this.onDisabledChangeCallbacks.push(fn);
+  }
+
+  _unregisterOnDisabledChange(fn: (isDisabled: boolean) => void): void {
+    removeListItem(this.onDisabledChangeCallbacks, fn);
   }
 
   override updateValueAndValidity(opts?: Object): void {}

@@ -6,18 +6,30 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import {signal, WritableSignal, EventEmitter} from '@angular/core';
-import {AbstractControl, ValidatorFn, Validators} from '@angular/forms';
+import {signal, WritableSignal, EventEmitter, Injector} from '@angular/core';
+import {TestBed} from '@angular/core/testing';
+import {AbstractControl, ValidationErrors, ValidatorFn} from '@angular/forms';
+import {compatForm} from '../../../compat/src/api/compat_form';
+import {required} from '../../../public_api';
 import {SchemaFn} from '../../../src/api/types';
 
 // Mocking the behavior for now as a minimal implementation
 class SignalFormControl<T> extends AbstractControl {
+  private field;
+
   constructor(
     public source: WritableSignal<T>,
-    validator: ValidatorFn | null,
     schema?: SchemaFn<T>,
   ) {
-    super(validator, null);
+    super(null, null);
+
+    const injector = TestBed.inject(Injector);
+    if (schema) {
+      this.field = compatForm(source, schema, {injector});
+    } else {
+      this.field = compatForm(source, {injector});
+    }
+
     Object.defineProperty(this, 'value', {
       get: () => this.source(),
       enumerable: true,
@@ -27,6 +39,18 @@ class SignalFormControl<T> extends AbstractControl {
     // AbstractControl expects these to be initialized
     (this as unknown as {valueChanges: EventEmitter<any>}).valueChanges = new EventEmitter();
     (this as unknown as {statusChanges: EventEmitter<any>}).statusChanges = new EventEmitter();
+
+    // Bridge validation
+    this.validator = () => {
+      const errors = this.field().errors();
+      if (!errors || errors.length === 0) return null;
+      // Convert Array of errors to Map of errors for Reactive Forms
+      const result: ValidationErrors = {};
+      for (const error of errors) {
+        result[error.kind] = error;
+      }
+      return result;
+    };
   }
 
   override setValue(value: any, options?: Object): void {
@@ -69,10 +93,9 @@ class SignalFormControl<T> extends AbstractControl {
 
 function SignalFormControlFactory<T>(
   source: WritableSignal<T>,
-  validator: ValidatorFn | null = null,
   schema?: SchemaFn<T>,
 ): SignalFormControl<T> {
-  return new SignalFormControl(source, validator, schema);
+  return new SignalFormControl(source, schema);
 }
 
 describe('SignalFormControl', () => {
@@ -86,14 +109,16 @@ describe('SignalFormControl', () => {
   });
 
   it('should validate', () => {
-    const value = signal(10);
-    const form = SignalFormControlFactory(value, Validators.min(100));
+    // Initialize with undefined so required() fails
+    const value = signal<number | undefined>(undefined);
 
-    // Initially 10, should be invalid (min 100)
-    // We need to call updateValueAndValidity because AbstractControl doesn't know the signal value initially
-    // unless we tell it, or we rely on it asking for 'value' during some init phase.
-    // However, AbstractControl constructor calls _assignValidators but doesn't auto-run validation immediately on creation usually?
-    // Actually, AbstractControl doesn't look at value in constructor.
+    // Pass the schema function directly
+    const form = SignalFormControlFactory(value, (p) => {
+      required(p);
+    });
+
+    // We need to call updateValueAndValidity to sync the validation status
+    // because AbstractControl doesn't run it automatically on construction against the external signal source
     form.updateValueAndValidity();
 
     expect(form.valid).toBe(false);
@@ -101,7 +126,7 @@ describe('SignalFormControl', () => {
     form.setValue(100);
     expect(form.valid).toBe(true);
 
-    form.setValue(50);
+    form.setValue(undefined);
     expect(form.valid).toBe(false);
   });
 });

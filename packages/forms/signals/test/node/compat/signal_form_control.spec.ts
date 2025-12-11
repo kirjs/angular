@@ -195,13 +195,65 @@ describe('SignalFormControl', () => {
     expect(form.valid).toBe(false);
   });
 
+  it('should expose validation errors through the errors getter', () => {
+    const value = signal<number | undefined>(undefined);
+
+    const form = SignalFormControlFactory(value, (p) => {
+      required(p);
+    });
+
+    let errors = form.errors;
+    expect(errors).not.toBeNull();
+    expect(errors!['required']).toEqual(jasmine.objectContaining({kind: 'required'}));
+
+    form.setValue(1);
+    errors = form.errors;
+    expect(errors).toBeNull();
+  });
+
+  it('should emit valueChanges when the value updates', () => {
+    const value = signal(10);
+    const form = SignalFormControlFactory(value);
+    const emissions: number[] = [];
+
+    form.valueChanges.subscribe((v) => emissions.push(v));
+
+    form.setValue(20);
+    TestBed.flushEffects();
+    expect(emissions).toEqual([20]);
+
+    value.set(30);
+    TestBed.flushEffects();
+    expect(emissions).toEqual([20, 30]);
+  });
+
+  it('should emit statusChanges when validity toggles', () => {
+    const value = signal<number | undefined>(undefined);
+    const form = SignalFormControlFactory(value, (p) => {
+      required(p);
+    });
+    const statuses: FormControlStatus[] = [];
+
+    form.statusChanges.subscribe((status) => statuses.push(status));
+
+    form.setValue(1);
+    TestBed.flushEffects();
+    expect(statuses).toEqual(['VALID']);
+
+    form.setValue(undefined);
+    TestBed.flushEffects();
+    expect(statuses).toEqual(['VALID', 'INVALID']);
+
+    form.setValue(10);
+    TestBed.flushEffects();
+    expect(statuses).toEqual(['VALID', 'INVALID', 'VALID']);
+  });
+
   it('should support disabled via rules', () => {
     const value = signal(10);
     const form = SignalFormControlFactory(value, (p) => {
       disabled(p, ({value}) => value() > 15);
     });
-
-    // flush effects if needed, or rely on signal access
 
     expect(form.disabled).toBe(false);
     expect(form.status).toBe('VALID');
@@ -231,9 +283,12 @@ describe('SignalFormControl', () => {
   });
 
   describe('Integration in FormGroup', () => {
-    it('should support markAsDirty', () => {
+    it('should reflect value and value changes', () => {
       const value = signal(10);
       const form = SignalFormControlFactory(value);
+      const group = new FormGroup({
+        n: form,
+      });
     });
   });
 });

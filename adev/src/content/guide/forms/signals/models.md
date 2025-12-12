@@ -133,12 +133,10 @@ You can access form values in two ways: directly from the model signal, or throu
 Access the model signal when you need the complete form data, such as during form submission:
 
 ```ts
-onSubmit() {
-  const formData = this.loginModel();
-  console.log(formData.email, formData.password);
-
-  // Send to server
-  await this.authService.login(formData);
+async onSubmit() {
+  const formData = this.loginModel()
+  console.log(formData.email, formData.password)
+  await this.authService.login(formData)
 }
 ```
 

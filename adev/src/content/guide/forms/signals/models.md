@@ -134,9 +134,11 @@ Access the model signal when you need the complete form data, such as during for
 
 ```ts
 async onSubmit() {
-  const formData = this.loginModel()
-  console.log(formData.email, formData.password)
-  await this.authService.login(formData)
+  const formData = this.loginModel();
+  console.log(formData.email, formData.password);
+
+  // Send to server
+  await this.authService.login(formData);
 }
 ```
 

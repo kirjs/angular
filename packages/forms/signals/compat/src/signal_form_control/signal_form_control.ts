@@ -182,10 +182,12 @@ export class SignalFormControl<T> extends AbstractControl {
   override get dirty(): boolean {
     return this.field().dirty();
   }
+  override set dirty(_: boolean) {}
 
   override get touched(): boolean {
     return this.field().touched();
   }
+  override set touched(_: boolean) {}
 
   override get valid(): boolean {
     return this.field().valid();
@@ -209,10 +211,12 @@ export class SignalFormControl<T> extends AbstractControl {
 
   override markAsTouched(opts?: {onlySelf?: boolean}): void {
     this.field().markAsTouched();
+    super.markAsTouched(opts);
   }
 
   override markAsDirty(opts?: {onlySelf?: boolean}): void {
     this.field().markAsDirty();
+    super.markAsDirty(opts);
   }
 
   override markAsPristine(opts?: {onlySelf?: boolean}): void {}

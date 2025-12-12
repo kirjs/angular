@@ -117,6 +117,25 @@ describe('ApiReferenceList', () => {
     expect(component.filteredGroups()![0].items).toEqual([fakeItem1]);
   });
 
+  it('should support slash in query by matching against URL segments', () => {
+    fixture.componentRef.setInput('query', 'animations/fakeItem1');
+    fixture.detectChanges();
+
+    expect(component.filteredGroups()![0].items).toEqual([fakeItem1]);
+  });
+
+  it('should support trailing slash in query', () => {
+    fixture.componentRef.setInput('query', 'animations/');
+    fixture.detectChanges();
+
+    expect(component.filteredGroups()![0].items).toEqual([
+      fakeItem1,
+      fakeItem2,
+      fakeDeveloperPreviewItem,
+      fakeExperimentalItem,
+    ]);
+  });
+
   it('should display only class items when user selects Class in the Type select', () => {
     fixture.componentRef.setInput('type', ApiItemType.CLASS);
     fixture.detectChanges();

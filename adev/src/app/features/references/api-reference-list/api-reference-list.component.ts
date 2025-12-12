@@ -71,9 +71,9 @@ export default class ApiReferenceList {
 
   // inputs are route binded, they can reset to undefined
   // also we want a writable state, so we use a linked signal
-  protected query = linkedSignal(() => this.queryInput() ?? '');
-  public type = linkedSignal(() => this.typeInput() ?? ALL_TYPES_KEY);
-  private status = linkedSignal(() => this.statusInput() ?? DEFAULT_STATUS);
+  protected readonly query = linkedSignal(() => this.queryInput() ?? '');
+  public readonly type = linkedSignal(() => this.typeInput() ?? ALL_TYPES_KEY);
+  private readonly status = linkedSignal(() => this.statusInput() ?? DEFAULT_STATUS);
 
   // const state
   protected readonly itemTypes = Object.values(ApiItemType);
@@ -87,7 +87,8 @@ export default class ApiReferenceList {
   };
 
   readonly filteredGroups = computed((): ApiItemsGroup[] => {
-    const query = this.query().toLocaleLowerCase();
+    const query = this.query().toLocaleLowerCase().trim();
+    const queryTokens = query.split(/[\s/]+/).filter((token) => token.length > 0);
     const status = this.status();
     const type = this.type();
     return this.apiReferenceManager
@@ -96,8 +97,25 @@ export default class ApiReferenceList {
         title: group.title,
         id: group.id,
         items: group.items.filter((apiItem) => {
+          const groupTitle = group.title.toLocaleLowerCase();
+          const groupId = group.id.toLocaleLowerCase();
+          const groupPackage = `@angular/${groupTitle}`;
+          const apiTitle = apiItem.title.toLocaleLowerCase();
+          const apiUrl = (apiItem.url ?? '').toLocaleLowerCase();
+          const matchesQuery =
+            queryTokens.length === 0 ||
+            queryTokens.every((token) => {
+              return (
+                apiTitle.includes(token) ||
+                apiUrl.includes(token) ||
+                groupTitle.includes(token) ||
+                groupId.includes(token) ||
+                groupPackage.includes(token)
+              );
+            });
+
           return (
-            (query == '' ? true : apiItem.title.toLocaleLowerCase().includes(query)) &&
+            matchesQuery &&
             (type === ALL_TYPES_KEY || apiItem.itemType === type) &&
             ((status & STATUSES.stable &&
               !apiItem.developerPreview &&

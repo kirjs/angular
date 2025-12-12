@@ -19,8 +19,7 @@ Signal Forms address these challenges by:
 
 Signal Forms work best in new applications built with signals. If you're working with an existing application that uses reactive forms, or if you need production stability guarantees, reactive forms remain a solid choice.
 
-<!-- TODO: UNCOMMENT SECTION BELOW WHEN AVAILABLE -->
-<!-- NOTE: If you're coming from template or reactive forms, you may be interested in our [comparison guide](guide/forms/signals/comparison). -->
+NOTE: If you're coming from template or reactive forms, you may be interested in our [comparison guide](guide/forms/signals/comparison).
 
 ## Prerequisites
 
@@ -45,8 +44,7 @@ The `Field` directive must be imported into any component that binds form fields
 })
 ```
 
-<!-- TODO: UNCOMMENT SECTION BELOW WHEN AVAILABLE -->
-<!-- ## Next steps
+## Next steps
 
 To learn more about how Signal Forms work, check out the following guides:
 
@@ -56,4 +54,4 @@ To learn more about how Signal Forms work, check out the following guides:
   <docs-pill href="guide/forms/signals/field-state-management" title="Field state management" />
   <docs-pill href="guide/forms/signals/validation" title="Validation" />
   <docs-pill href="guide/forms/signals/custom-controls" title="Custom controls" />
-</docs-pill-row> -->
+</docs-pill-row>

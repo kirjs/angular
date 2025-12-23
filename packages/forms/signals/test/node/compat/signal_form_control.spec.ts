@@ -18,6 +18,10 @@ function createSignalFormControl<T>(value: WritableSignal<T>, schema?: SchemaFn<
   return SignalFormControlFactory(value, schema, injector);
 }
 
+/**
+ * Open questions:
+ * - Disable/Enable should throw an error?
+ */
 describe('SignalFormControl', () => {
   it('should have the same value as the signal', () => {
     const value = signal(10);
@@ -183,6 +187,57 @@ describe('SignalFormControl', () => {
     expect(form.dirty).toBe(false);
     form.markAsDirty();
     expect(form.dirty).toBe(true);
+  });
+
+  it('should support markAsPristine', () => {
+    const value = signal(10);
+    const form = createSignalFormControl(value);
+
+    form.markAsDirty();
+    expect(form.dirty).toBe(true);
+
+    form.markAsPristine();
+    expect(form.dirty).toBe(false);
+  });
+
+  it('should support markAsUntouched', () => {
+    const value = signal(10);
+    const form = createSignalFormControl(value);
+
+    form.markAsTouched();
+    expect(form.touched).toBe(true);
+
+    form.markAsUntouched();
+    expect(form.touched).toBe(false);
+  });
+
+  it('should reset touched and dirty state', () => {
+    const value = signal(10);
+    const form = createSignalFormControl(value);
+
+    form.markAsTouched();
+    form.markAsDirty();
+    expect(form.touched).toBe(true);
+    expect(form.dirty).toBe(true);
+
+    form.reset(10);
+    expect(form.touched).toBe(false);
+    expect(form.dirty).toBe(false);
+    expect(form.value).toBe(10);
+  });
+
+  it('should reset with a new value', () => {
+    const value = signal(10);
+    const form = createSignalFormControl(value);
+
+    form.markAsTouched();
+    form.markAsDirty();
+
+    form.reset(42);
+    expect(form.value).toBe(42);
+    expect(value()).toBe(42);
+    expect(form.touched).toBe(false);
+    expect(form.dirty).toBe(false);
   });
 
   describe('Integration in FormGroup', () => {

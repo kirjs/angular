@@ -114,6 +114,9 @@ export class SignalFormControl<T> extends AbstractControl {
   }
 
   override reset(value?: any, options?: ValueUpdateOptions): void {
+    // Reset the underlying field state (touched/dirty) using the field's reset method
+    this.field().reset(value !== undefined ? value : (this.source() as any));
+
     if (value !== undefined) {
       const parent = this.prepareParentPropagation(options);
       this.source.set(value);
@@ -219,7 +222,19 @@ export class SignalFormControl<T> extends AbstractControl {
     super.markAsDirty(opts);
   }
 
-  override markAsPristine(opts?: {onlySelf?: boolean}): void {}
+  override markAsPristine(opts?: {onlySelf?: boolean}): void {
+    // FieldState doesn't expose markAsPristine directly, but reset() calls it internally.
+    // We call reset() with the current value to avoid changing it.
+    this.field().reset(this.source() as any);
+    super.markAsPristine(opts);
+  }
+
+  override markAsUntouched(opts?: {onlySelf?: boolean}): void {
+    // FieldState doesn't expose markAsUntouched directly, but reset() calls it internally.
+    // We call reset() with the current value to avoid changing it.
+    this.field().reset(this.source() as any);
+    super.markAsUntouched(opts);
+  }
 
   // @internal
   _updateValue(): void {}

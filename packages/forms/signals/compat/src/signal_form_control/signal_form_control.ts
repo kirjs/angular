@@ -12,7 +12,11 @@ import {
   FormArray,
   FormControlStatus,
   FormGroup,
+  PristineChangeEvent,
+  StatusChangeEvent,
+  TouchedChangeEvent,
   ValidationErrors,
+  ValueChangeEvent,
 } from '@angular/forms';
 
 import {compatForm} from '../api/compat_form';
@@ -32,6 +36,9 @@ export class SignalFormControl<T> extends AbstractControl {
   private onChangeCallbacks: Array<(value?: any, emitModelEvent?: boolean) => void> = [];
   private onDisabledChangeCallbacks: Array<(isDisabled: boolean) => void> = [];
   private lastDisabledState: boolean | undefined;
+  private lastTouchedState: boolean | undefined;
+  private lastDirtyState: boolean | undefined;
+  private lastStatusState: FormControlStatus | undefined;
 
   constructor(
     public source: WritableSignal<T>,
@@ -80,6 +87,7 @@ export class SignalFormControl<T> extends AbstractControl {
         }
 
         (this.valueChanges as EventEmitter<T>).emit(currentValue);
+        (this as any)._events.next(new ValueChangeEvent(currentValue, this));
       },
       {injector},
     );
@@ -87,12 +95,45 @@ export class SignalFormControl<T> extends AbstractControl {
       () => {
         const status = this.status;
         (this.statusChanges as EventEmitter<FormControlStatus>).emit(status);
+
+        // Emit StatusChangeEvent only on actual status changes
+        if (this.lastStatusState === undefined) {
+          this.lastStatusState = status;
+        } else if (this.lastStatusState !== status) {
+          this.lastStatusState = status;
+          (this as any)._events.next(new StatusChangeEvent(status, this));
+        }
+
         const isDisabled = this.disabled;
         if (this.lastDisabledState === undefined) {
           this.lastDisabledState = isDisabled;
         } else if (this.lastDisabledState !== isDisabled) {
           this.lastDisabledState = isDisabled;
           this.onDisabledChangeCallbacks.forEach((fn) => fn(isDisabled));
+        }
+      },
+      {injector},
+    );
+    effect(
+      () => {
+        const touched = this.field().touched();
+        if (this.lastTouchedState === undefined) {
+          this.lastTouchedState = touched;
+        } else if (this.lastTouchedState !== touched) {
+          this.lastTouchedState = touched;
+          (this as any)._events.next(new TouchedChangeEvent(touched, this));
+        }
+      },
+      {injector},
+    );
+    effect(
+      () => {
+        const dirty = this.field().dirty();
+        if (this.lastDirtyState === undefined) {
+          this.lastDirtyState = dirty;
+        } else if (this.lastDirtyState !== dirty) {
+          this.lastDirtyState = dirty;
+          (this as any)._events.next(new PristineChangeEvent(!dirty, this));
         }
       },
       {injector},

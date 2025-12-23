@@ -104,6 +104,75 @@ describe('SignalFormControl', () => {
     expect(statuses).toEqual(['VALID', 'INVALID', 'VALID']);
   });
 
+  it('should emit ValueChangeEvent on events observable', () => {
+    const value = signal(10);
+    const form = createSignalFormControl(value);
+    const events: any[] = [];
+
+    form.events.subscribe((e) => events.push(e));
+
+    form.setValue(20);
+    TestBed.flushEffects();
+
+    const valueEvents = events.filter((e) => e.constructor.name === 'ValueChangeEvent');
+    expect(valueEvents.length).toBeGreaterThan(0);
+    expect(valueEvents[valueEvents.length - 1].value).toBe(20);
+  });
+
+  it('should emit StatusChangeEvent on events observable when status changes', () => {
+    const value = signal<number | undefined>(10);
+    const form = createSignalFormControl(value, (p) => required(p));
+
+    // Flush initial effects to set up tracking
+    TestBed.flushEffects();
+
+    const events: any[] = [];
+    form.events.subscribe((e) => events.push(e));
+
+    form.setValue(undefined);
+    TestBed.flushEffects();
+
+    const statusEvents = events.filter((e) => e.constructor.name === 'StatusChangeEvent');
+    expect(statusEvents.length).toBeGreaterThan(0);
+    expect(statusEvents[statusEvents.length - 1].status).toBe('INVALID');
+  });
+
+  it('should emit TouchedChangeEvent on events observable', () => {
+    const value = signal(10);
+    const form = createSignalFormControl(value);
+
+    // Flush initial effects to set up tracking
+    TestBed.flushEffects();
+
+    const events: any[] = [];
+    form.events.subscribe((e) => events.push(e));
+
+    form.markAsTouched();
+    TestBed.flushEffects();
+
+    const touchedEvents = events.filter((e) => e.constructor.name === 'TouchedChangeEvent');
+    expect(touchedEvents.length).toBe(1);
+    expect(touchedEvents[0].touched).toBe(true);
+  });
+
+  it('should emit PristineChangeEvent on events observable when dirty changes', () => {
+    const value = signal(10);
+    const form = createSignalFormControl(value);
+
+    // Flush initial effects to set up tracking
+    TestBed.flushEffects();
+
+    const events: any[] = [];
+    form.events.subscribe((e) => events.push(e));
+
+    form.markAsDirty();
+    TestBed.flushEffects();
+
+    const pristineEvents = events.filter((e) => e.constructor.name === 'PristineChangeEvent');
+    expect(pristineEvents.length).toBeGreaterThan(0);
+    expect(pristineEvents[pristineEvents.length - 1].pristine).toBe(false);
+  });
+
   it('should expose pending status for async validators', async () => {
     const value = signal('initial');
     const pendingResolvers: Array<(errors: ValidationError[]) => void> = [];

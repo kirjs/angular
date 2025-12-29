@@ -83,7 +83,8 @@ In the template, use standard reactive syntax by binding the underlying control:
 
 ### Integrating a `FormGroup` into a signal form
 
-You can also wrap an entire `FormGroup`. This is common when a reusable sub-section of a form—such as an **Address Block**—is still managed by legacy Reactive Forms.
+You can also wrap an entire `FormGroup`. This is common when a reusable sub-section of a form—such as an **Address Block
+**—is still managed by legacy Reactive Forms.
 
 ```typescript
 import {signal} from '@angular/core';
@@ -208,7 +209,24 @@ This is coming soon.
 
 ## Automatic status classes
 
-To avoid manually adding classes like `.ng-valid`, `.ng-dirty` etc to every field, you can provide a global configuration using `provideSignalFormsConfig`. Signal Forms provides a built-in `NG_STATUS_CLASSES` preset that matches legacy Reactive Forms behavior.
+Reactive forms used to bind classes like `.ng-valid` or `.ng-dirty` to every field. Signal forms do not do that anymore.
+
+If you want this behavior you can provide an NG_STATUS_CLASSES preset that can be provided to match the Reactive Forms
+behavior:
+
+```typescript
+import {provideSignalFormsConfig} from '@angular/forms/signals';
+
+bootstrapApplication(App, {
+  providers: [
+    provideSignalFormsConfig({
+      classes: NG_STATUS_CLASSES,
+    }),
+  ],
+});
+```
+
+You can also provide your own custom configuration to apply whatever classes you wish based on you custom logic:
 
 ```typescript
 import {provideSignalFormsConfig} from '@angular/forms/signals';

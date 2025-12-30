@@ -120,15 +120,16 @@ describe('SignalFormControl', () => {
   });
 
   it('should propagate validity to parent FormGroup', () => {
+    const child = createSignalFormControl<string>('valid', (p) => required(p));
     const group = new FormGroup({
-      child: createSignalFormControl<string | undefined>('valid', (p) => required(p)),
+      child: child,
     });
 
     expect(group.valid).withContext('Valid initially').toBe(true);
-
-    const form = group.controls.child as SignalFormControl<string | undefined>;
-    form.setValue(undefined);
+    child.fieldState.value.set('');
     expect(group.valid).withContext('Invalid immediately on value change').toBe(false);
+    group.controls.child.setValue('meow');
+    expect(group.valid).withContext('Valid initially').toBe(true);
   });
 
   it('should emit ValueChangeEvent on events observable', () => {

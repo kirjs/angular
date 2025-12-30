@@ -62,7 +62,7 @@ export class SignalFormControl<T> extends AbstractControl {
     });
 
     Object.defineProperty(this, 'fieldState', {
-      get: () => this.field(),
+      get: () => wrapFieldStateForSyncUpdates(this.field(), this),
       enumerable: true,
       configurable: true,
     });
@@ -313,4 +313,36 @@ export function SignalFormControlFactory<T>(
   injector: Injector,
 ): SignalFormControl<T> {
   return new SignalFormControl(source, injector, schema);
+}
+/**
+ * Wraps the FieldState to intercept value updates and trigger synchronous synchronization
+ * with the parent control.
+ */
+function wrapFieldStateForSyncUpdates<T>(
+  state: FieldState<T>,
+  control: SignalFormControl<any>,
+): FieldState<T> {
+  return new Proxy(state, {
+    get: (target, prop, receiver) => {
+      const val = Reflect.get(target, prop, receiver);
+      if (prop === 'value') {
+        const signal = val as WritableSignal<any>;
+        return new Proxy(signal, {
+          get: (sTarget, sProp, sReceiver) => {
+            const sVal = Reflect.get(sTarget, sProp, sReceiver);
+            if (sProp === 'set' || sProp === 'update') {
+              return (...args: any[]) => {
+                const result = (sVal as Function).apply(sTarget, args);
+                (control as any).pendingParentNotifications++;
+                control.parent?.updateValueAndValidity({sourceControl: control} as any);
+                return result;
+              };
+            }
+            return sVal;
+          },
+        });
+      }
+      return val;
+    },
+  });
 }

@@ -8,12 +8,16 @@
 
 import {ApplicationRef, Injector, WritableSignal, resource, signal} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
-import {FormControlStatus} from '@angular/forms';
-import {SignalFormControlFactory} from '../../../compat/src/signal_form_control/signal_form_control';
+import {FormControlStatus, FormGroup} from '@angular/forms';
+import {
+  SignalFormControl,
+  SignalFormControlFactory,
+} from '../../../compat/src/signal_form_control/signal_form_control';
 import {customError, disabled, required, validateAsync, ValidationError} from '../../../public_api';
 import {SchemaFn} from '../../../src/api/types';
 
-function createSignalFormControl<T>(value: WritableSignal<T>, schema?: SchemaFn<T>) {
+function createSignalFormControl<T>(initialValue: T, schema?: SchemaFn<T>) {
+  const value = signal(initialValue);
   const injector = TestBed.inject(Injector);
   return SignalFormControlFactory(value, schema, injector);
 }
@@ -24,18 +28,15 @@ function createSignalFormControl<T>(value: WritableSignal<T>, schema?: SchemaFn<
  */
 describe('SignalFormControl', () => {
   it('should have the same value as the signal', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
 
     expect(form.value).toBe(10);
-    value.set(20);
+    form.setValue(20);
     expect(form.value).toBe(20);
   });
 
   it('should validate', () => {
-    const value = signal<number | undefined>(undefined);
-
-    const form = createSignalFormControl(value, (p) => {
+    const form = createSignalFormControl<number | undefined>(undefined, (p) => {
       required(p);
     });
 
@@ -51,9 +52,7 @@ describe('SignalFormControl', () => {
   });
 
   it('should expose validation errors through the errors getter', () => {
-    const value = signal<number | undefined>(undefined);
-
-    const form = createSignalFormControl(value, (p) => {
+    const form = createSignalFormControl<number | undefined>(undefined, (p) => {
       required(p);
     });
 
@@ -67,8 +66,7 @@ describe('SignalFormControl', () => {
   });
 
   it('should emit valueChanges when the value updates', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
     const emissions: number[] = [];
 
     form.valueChanges.subscribe((v) => emissions.push(v));
@@ -77,14 +75,13 @@ describe('SignalFormControl', () => {
     TestBed.flushEffects();
     expect(emissions).toEqual([20]);
 
-    value.set(30);
+    form.setValue(30);
     TestBed.flushEffects();
     expect(emissions).toEqual([20, 30]);
   });
 
   it('should emit statusChanges when validity toggles', () => {
-    const value = signal<number | undefined>(undefined);
-    const form = createSignalFormControl(value, (p) => {
+    const form = createSignalFormControl<number | undefined>(undefined, (p) => {
       required(p);
     });
     const statuses: FormControlStatus[] = [];
@@ -104,9 +101,30 @@ describe('SignalFormControl', () => {
     expect(statuses).toEqual(['VALID', 'INVALID', 'VALID']);
   });
 
+  it('should synchronize value with parent FormGroup', () => {
+    const group = new FormGroup({
+      child: createSignalFormControl('meow'),
+    });
+
+    const form = group.controls.child as SignalFormControl<string>;
+    form.setValue('wuf');
+    expect(group.value).toEqual({child: 'wuf'});
+  });
+
+  it('should propagate validity to parent FormGroup', () => {
+    const group = new FormGroup({
+      child: createSignalFormControl<string | undefined>('valid', (p) => required(p)),
+    });
+
+    expect(group.valid).withContext('Valid initially').toBe(true);
+
+    const form = group.controls.child as SignalFormControl<string | undefined>;
+    form.setValue(undefined);
+    expect(group.valid).withContext('Invalid immediately on value change').toBe(false);
+  });
+
   it('should emit ValueChangeEvent on events observable', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
     const events: any[] = [];
 
     form.events.subscribe((e) => events.push(e));
@@ -120,8 +138,7 @@ describe('SignalFormControl', () => {
   });
 
   it('should emit StatusChangeEvent on events observable when status changes', () => {
-    const value = signal<number | undefined>(10);
-    const form = createSignalFormControl(value, (p) => required(p));
+    const form = createSignalFormControl<number | undefined>(10, (p) => required(p));
 
     // Flush initial effects to set up tracking
     TestBed.flushEffects();
@@ -138,8 +155,7 @@ describe('SignalFormControl', () => {
   });
 
   it('should emit TouchedChangeEvent on events observable', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
 
     // Flush initial effects to set up tracking
     TestBed.flushEffects();
@@ -156,8 +172,7 @@ describe('SignalFormControl', () => {
   });
 
   it('should emit PristineChangeEvent on events observable when dirty changes', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
 
     // Flush initial effects to set up tracking
     TestBed.flushEffects();
@@ -174,14 +189,14 @@ describe('SignalFormControl', () => {
   });
 
   it('should expose pending status for async validators', async () => {
-    const value = signal('initial');
     const pendingResolvers: Array<(errors: ValidationError[]) => void> = [];
     const resolveNext = (errors: ValidationError[]) => {
       TestBed.flushEffects();
       expect(pendingResolvers.length).toBeGreaterThan(0);
       pendingResolvers.shift()!(errors);
     };
-    const form = createSignalFormControl(value, (p) => {
+
+    const form = createSignalFormControl('initial', (p) => {
       validateAsync(p, {
         params: ({value}) => value(),
         factory: (params) =>
@@ -226,8 +241,7 @@ describe('SignalFormControl', () => {
   });
 
   it('should support disabled via rules', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value, (p) => {
+    const form = createSignalFormControl(10, (p) => {
       disabled(p, ({value}) => value() > 15);
     });
 
@@ -241,8 +255,7 @@ describe('SignalFormControl', () => {
   });
 
   it('should support markAsTouched', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
 
     expect(form.touched).toBe(false);
     form.markAsTouched();
@@ -250,8 +263,7 @@ describe('SignalFormControl', () => {
   });
 
   it('should support markAsDirty', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
 
     expect(form.dirty).toBe(false);
     form.markAsDirty();
@@ -259,8 +271,7 @@ describe('SignalFormControl', () => {
   });
 
   it('should support markAsPristine', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
 
     form.markAsDirty();
     expect(form.dirty).toBe(true);
@@ -270,8 +281,7 @@ describe('SignalFormControl', () => {
   });
 
   it('should support markAsUntouched', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
 
     form.markAsTouched();
     expect(form.touched).toBe(true);
@@ -281,8 +291,7 @@ describe('SignalFormControl', () => {
   });
 
   it('should reset touched and dirty state', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
 
     form.markAsTouched();
     form.markAsDirty();
@@ -296,15 +305,14 @@ describe('SignalFormControl', () => {
   });
 
   it('should reset with a new value', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
 
     form.markAsTouched();
     form.markAsDirty();
 
     form.reset(42);
     expect(form.value).toBe(42);
-    expect(value()).toBe(42);
+    expect(form.source()).toBe(42);
     expect(form.touched).toBe(false);
     expect(form.dirty).toBe(false);
   });

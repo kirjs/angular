@@ -237,11 +237,13 @@ export class SignalFormControl<T> extends AbstractControl {
   override get dirty(): boolean {
     return this.field().dirty();
   }
+
   override set dirty(_: boolean) {}
 
   override get touched(): boolean {
     return this.field().touched();
   }
+
   override set touched(_: boolean) {}
 
   override get valid(): boolean {

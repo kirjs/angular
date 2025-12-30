@@ -35,6 +35,14 @@ describe('SignalFormControl', () => {
     expect(form.value).toBe(20);
   });
 
+  it('should expose fieldState', () => {
+    const form = createSignalFormControl(10);
+    expect(form.fieldState.value()).toBe(10);
+
+    form.setValue(20);
+    expect(form.fieldState.value()).toBe(20);
+  });
+
   it('should validate', () => {
     const form = createSignalFormControl<number | undefined>(undefined, (p) => {
       required(p);
@@ -102,12 +110,12 @@ describe('SignalFormControl', () => {
   });
 
   it('should synchronize value with parent FormGroup', () => {
+    const child = createSignalFormControl('meow');
     const group = new FormGroup({
-      child: createSignalFormControl('meow'),
+      child: child,
     });
 
-    const form = group.controls.child as SignalFormControl<string>;
-    form.setValue('wuf');
+    child.fieldState.value.set('wuf');
     expect(group.value).toEqual({child: 'wuf'});
   });
 

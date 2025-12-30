@@ -20,7 +20,7 @@ import {
 } from '@angular/forms';
 
 import {compatForm} from '../api/compat_form';
-import {SchemaFn} from '../../../src/api/types';
+import {FieldState, FieldTree, SchemaFn} from '../../../src/api/types';
 import {removeListItem} from '../../../../src/util';
 
 export type ValueUpdateOptions = {
@@ -31,7 +31,9 @@ export type ValueUpdateOptions = {
 };
 
 export class SignalFormControl<T> extends AbstractControl {
-  private field;
+  fieldState!: FieldState<T>;
+
+  private field: FieldTree<T>;
   private pendingParentNotifications = 0;
   private onChangeCallbacks: Array<(value?: any, emitModelEvent?: boolean) => void> = [];
   private onDisabledChangeCallbacks: Array<(isDisabled: boolean) => void> = [];
@@ -55,6 +57,12 @@ export class SignalFormControl<T> extends AbstractControl {
 
     Object.defineProperty(this, 'value', {
       get: () => this.source(),
+      enumerable: true,
+      configurable: true,
+    });
+
+    Object.defineProperty(this, 'fieldState', {
+      get: () => this.field(),
       enumerable: true,
       configurable: true,
     });

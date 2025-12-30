@@ -33,14 +33,18 @@ export type ValueUpdateOptions = {
 export class SignalFormControl<T> extends AbstractControl {
   fieldState!: FieldState<T>;
 
-  private field: FieldTree<T>;
+  private readonly field: FieldTree<T>;
   private pendingParentNotifications = 0;
-  private onChangeCallbacks: Array<(value?: any, emitModelEvent?: boolean) => void> = [];
-  private onDisabledChangeCallbacks: Array<(isDisabled: boolean) => void> = [];
-  private lastDisabledState: boolean | undefined;
-  private lastTouchedState: boolean | undefined;
-  private lastDirtyState: boolean | undefined;
-  private lastStatusState: FormControlStatus | undefined;
+  private readonly onChangeCallbacks: Array<(value?: any, emitModelEvent?: boolean) => void> = [];
+  private readonly onDisabledChangeCallbacks: Array<(isDisabled: boolean) => void> = [];
+
+  // Track previous states to emit events only on actual changes
+  private lastState = {
+    status: undefined as FormControlStatus | undefined,
+    disabled: undefined as boolean | undefined,
+    touched: undefined as boolean | undefined,
+    dirty: undefined as boolean | undefined,
+  };
 
   constructor(
     public source: WritableSignal<T>,
@@ -49,12 +53,13 @@ export class SignalFormControl<T> extends AbstractControl {
   ) {
     super(null, null);
 
-    if (schema) {
-      this.field = compatForm(source, schema, {injector});
-    } else {
-      this.field = compatForm(source, {injector});
-    }
+    this.field = schema ? compatForm(source, schema, {injector}) : compatForm(source, {injector});
 
+    this.defineProperties();
+    this.setupEffects(injector);
+  }
+
+  private defineProperties(): void {
     Object.defineProperty(this, 'value', {
       get: () => this.source(),
       enumerable: true,
@@ -73,107 +78,113 @@ export class SignalFormControl<T> extends AbstractControl {
     Object.defineProperty(this, 'errors', {
       get: () => {
         const errors = this.field().errors();
-        if (!errors || errors.length === 0) return null;
-        const result: ValidationErrors = {};
-        for (const error of errors) {
-          result[error.kind] = error;
-        }
-        return result;
+        if (!errors?.length) return null;
+        return Object.fromEntries(errors.map((e) => [e.kind, e])) as ValidationErrors;
       },
       enumerable: true,
       configurable: true,
     });
 
-    (this as unknown as {valueChanges: EventEmitter<any>}).valueChanges = new EventEmitter();
-    (this as unknown as {statusChanges: EventEmitter<any>}).statusChanges = new EventEmitter();
+    (this as any).valueChanges = new EventEmitter();
+    (this as any).statusChanges = new EventEmitter();
+  }
 
+  private setupEffects(injector: Injector): void {
+    // Value changes
     effect(
       () => {
-        const currentValue = this.source();
-
+        const value = this.source();
         if (this.pendingParentNotifications > 0) {
           this.pendingParentNotifications--;
         } else {
           this.parent?.updateValueAndValidity({sourceControl: this} as any);
         }
-
-        (this.valueChanges as EventEmitter<T>).emit(currentValue);
-        (this as any)._events.next(new ValueChangeEvent(currentValue, this));
+        (this.valueChanges as EventEmitter<T>).emit(value);
+        (this as any)._events.next(new ValueChangeEvent(value, this));
       },
       {injector},
     );
+
+    // Status and disabled changes
     effect(
       () => {
         const status = this.status;
         (this.statusChanges as EventEmitter<FormControlStatus>).emit(status);
-
-        // Emit StatusChangeEvent only on actual status changes
-        if (this.lastStatusState === undefined) {
-          this.lastStatusState = status;
-        } else if (this.lastStatusState !== status) {
-          this.lastStatusState = status;
-          (this as any)._events.next(new StatusChangeEvent(status, this));
-        }
-
-        const isDisabled = this.disabled;
-        if (this.lastDisabledState === undefined) {
-          this.lastDisabledState = isDisabled;
-        } else if (this.lastDisabledState !== isDisabled) {
-          this.lastDisabledState = isDisabled;
-          this.onDisabledChangeCallbacks.forEach((fn) => fn(isDisabled));
-        }
+        this.emitOnChange('status', status, () =>
+          (this as any)._events.next(new StatusChangeEvent(status, this)),
+        );
+        this.emitOnChange('disabled', this.disabled, (isDisabled) =>
+          this.onDisabledChangeCallbacks.forEach((fn) => fn(isDisabled)),
+        );
       },
       {injector},
     );
+
+    // Touched changes
     effect(
       () => {
         const touched = this.field().touched();
-        if (this.lastTouchedState === undefined) {
-          this.lastTouchedState = touched;
-        } else if (this.lastTouchedState !== touched) {
-          this.lastTouchedState = touched;
-          (this as any)._events.next(new TouchedChangeEvent(touched, this));
-        }
+        this.emitOnChange('touched', touched, () =>
+          (this as any)._events.next(new TouchedChangeEvent(touched, this)),
+        );
       },
       {injector},
     );
+
+    // Dirty changes
     effect(
       () => {
         const dirty = this.field().dirty();
-        if (this.lastDirtyState === undefined) {
-          this.lastDirtyState = dirty;
-        } else if (this.lastDirtyState !== dirty) {
-          this.lastDirtyState = dirty;
-          (this as any)._events.next(new PristineChangeEvent(!dirty, this));
-        }
+        this.emitOnChange('dirty', dirty, () =>
+          (this as any)._events.next(new PristineChangeEvent(!dirty, this)),
+        );
       },
       {injector},
     );
   }
 
+  /** Emits callback only when value changes from the previous state. */
+  private emitOnChange<K extends keyof typeof this.lastState>(
+    key: K,
+    value: NonNullable<(typeof this.lastState)[K]>,
+    callback: (value: NonNullable<(typeof this.lastState)[K]>) => void,
+  ): void {
+    if (this.lastState[key] === undefined) {
+      this.lastState[key] = value;
+    } else if (this.lastState[key] !== value) {
+      this.lastState[key] = value;
+      callback(value);
+    }
+  }
+
+  // --- Value mutation methods ---
+
   override setValue(value: any, options?: ValueUpdateOptions): void {
-    const parent = this.prepareParentPropagation(options);
-    this.source.set(value);
-    this.notifyParent(parent, options);
-    this.emitModelChanges(value, options);
+    this.updateValue(value, options);
   }
 
   override patchValue(value: any, options?: ValueUpdateOptions): void {
+    this.updateValue(value, options);
+  }
+
+  private updateValue(value: any, options?: ValueUpdateOptions): void {
     const parent = this.prepareParentPropagation(options);
     this.source.set(value);
-    this.notifyParent(parent, options);
-    this.emitModelChanges(value, options);
+    if (parent) {
+      parent.updateValueAndValidity({emitEvent: options?.emitEvent, sourceControl: this} as any);
+    }
+    if (options?.emitModelToViewChange !== false) {
+      const emitModelEvent = options?.emitViewToModelChange !== false;
+      this.onChangeCallbacks.forEach((fn) => fn(value, emitModelEvent));
+    }
   }
 
   override reset(value?: any, options?: ValueUpdateOptions): void {
-    // Reset the underlying field state (touched/dirty) using the field's reset method
-    this.field().reset(value !== undefined ? value : (this.source() as any));
+    const resetValue = value ?? this.source();
+    this.field().reset(resetValue as any);
 
     if (value !== undefined) {
-      const parent = this.prepareParentPropagation(options);
-      this.source.set(value);
-      this.notifyParent(parent, options);
-      this.emitModelChanges(value, options);
+      this.updateValue(value, options);
     } else if (!options?.onlySelf) {
       this.parent?.updateValueAndValidity({
         emitEvent: options?.emitEvent,
@@ -187,27 +198,14 @@ export class SignalFormControl<T> extends AbstractControl {
       this.pendingParentNotifications++;
       return null;
     }
-    const parent = this.parent;
-    if (parent) {
+    if (this.parent) {
       this.pendingParentNotifications++;
-      return parent;
+      return this.parent;
     }
     return null;
   }
 
-  private notifyParent(parent: FormGroup | FormArray | null, options?: ValueUpdateOptions): void {
-    if (!parent) return;
-    parent.updateValueAndValidity({
-      emitEvent: options?.emitEvent,
-      sourceControl: this,
-    } as any);
-  }
-
-  private emitModelChanges(value: any, options?: ValueUpdateOptions): void {
-    if (options?.emitModelToViewChange === false) return;
-    const emitModelEvent = options?.emitViewToModelChange !== false;
-    this.onChangeCallbacks.forEach((fn) => fn(value, emitModelEvent));
-  }
+  // --- Callback registration ---
 
   registerOnChange(fn: (value?: any, emitModelEvent?: boolean) => void): void {
     this.onChangeCallbacks.push(fn);
@@ -225,46 +223,43 @@ export class SignalFormControl<T> extends AbstractControl {
     removeListItem(this.onDisabledChangeCallbacks, fn);
   }
 
-  override updateValueAndValidity(opts?: Object): void {}
+  // --- State getters (delegated to field) ---
 
   override get status(): FormControlStatus {
-    if (this.field().disabled()) return 'DISABLED';
-    if (this.field().valid()) return 'VALID';
-    if (this.field().invalid()) return 'INVALID';
+    const f = this.field();
+    if (f.disabled()) return 'DISABLED';
+    if (f.valid()) return 'VALID';
+    if (f.invalid()) return 'INVALID';
     return 'PENDING';
   }
 
   override get dirty(): boolean {
     return this.field().dirty();
   }
-
-  override set dirty(_: boolean) {}
+  override set dirty(_: boolean) {} // No-op: state is derived from signal
 
   override get touched(): boolean {
     return this.field().touched();
   }
-
-  override set touched(_: boolean) {}
+  override set touched(_: boolean) {} // No-op: state is derived from signal
 
   override get valid(): boolean {
     return this.field().valid();
   }
-
   override get invalid(): boolean {
     return this.field().invalid();
   }
-
   override get pending(): boolean {
     return this.field().pending();
   }
-
   override get disabled(): boolean {
     return this.field().disabled();
   }
-
   override get enabled(): boolean {
-    return !this.field().disabled();
+    return !this.disabled;
   }
+
+  // --- State mutation methods ---
 
   override markAsTouched(opts?: {onlySelf?: boolean}): void {
     this.field().markAsTouched();
@@ -277,36 +272,27 @@ export class SignalFormControl<T> extends AbstractControl {
   }
 
   override markAsPristine(opts?: {onlySelf?: boolean}): void {
-    // FieldState doesn't expose markAsPristine directly, but reset() calls it internally.
-    // We call reset() with the current value to avoid changing it.
-    this.field().reset(this.source() as any);
+    this.field().reset(this.source() as any); // reset() clears pristine internally
     super.markAsPristine(opts);
   }
 
   override markAsUntouched(opts?: {onlySelf?: boolean}): void {
-    // FieldState doesn't expose markAsUntouched directly, but reset() calls it internally.
-    // We call reset() with the current value to avoid changing it.
-    this.field().reset(this.source() as any);
+    this.field().reset(this.source() as any); // reset() clears touched internally
     super.markAsUntouched(opts);
   }
 
-  // @internal
+  override updateValueAndValidity(_opts?: Object): void {} // No-op: validity is derived from signal
+
+  // --- Internal methods required by AbstractControl ---
+
   _updateValue(): void {}
-
-  // @internal
-  _forEachChild(cb: (c: AbstractControl) => void): void {}
-
-  // @internal
-  _anyControls(condition: (c: AbstractControl) => boolean): boolean {
+  _forEachChild(_cb: (c: AbstractControl) => void): void {}
+  _anyControls(_condition: (c: AbstractControl) => boolean): boolean {
     return false;
   }
-
-  // @internal
   _allControlsDisabled(): boolean {
     return this.disabled;
   }
-
-  // @internal
   _syncPendingControls(): boolean {
     return false;
   }

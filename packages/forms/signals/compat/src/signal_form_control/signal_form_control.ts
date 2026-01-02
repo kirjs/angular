@@ -6,7 +6,13 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import {EventEmitter, Injector, WritableSignal, effect} from '@angular/core';
+import {
+  EventEmitter,
+  Injector,
+  WritableSignal,
+  effect,
+  ɵRuntimeError as RuntimeError,
+} from '@angular/core';
 import {
   AbstractControl,
   FormArray,
@@ -21,6 +27,7 @@ import {
 
 import {compatForm} from '../api/compat_form';
 import {FieldState, FieldTree, SchemaFn} from '../../../src/api/types';
+import {SignalFormsErrorCode} from '../../../src/errors';
 import {removeListItem} from '../../../../src/util';
 
 export type ValueUpdateOptions = {
@@ -295,6 +302,62 @@ export class SignalFormControl<T> extends AbstractControl {
   }
   _syncPendingControls(): boolean {
     return false;
+  }
+
+  // Unsupported methods
+  override disable(_opts?: {onlySelf?: boolean; emitEvent?: boolean}): void {
+    throw this.unsupported();
+  }
+
+  override enable(_opts?: {onlySelf?: boolean; emitEvent?: boolean}): void {
+    throw this.unsupported();
+  }
+
+  override setValidators(_validators: any): void {
+    throw this.unsupported();
+  }
+
+  override setAsyncValidators(_validators: any): void {
+    throw this.unsupported();
+  }
+
+  override addValidators(_validators: any): void {
+    throw this.unsupported();
+  }
+
+  override addAsyncValidators(_validators: any): void {
+    throw this.unsupported();
+  }
+
+  override removeValidators(_validators: any): void {
+    throw this.unsupported();
+  }
+
+  override removeAsyncValidators(_validators: any): void {
+    throw this.unsupported();
+  }
+
+  override clearValidators(): void {
+    throw this.unsupported();
+  }
+
+  override clearAsyncValidators(): void {
+    throw this.unsupported();
+  }
+
+  override setErrors(_errors: any, _opts?: {emitEvent?: boolean}): void {
+    throw this.unsupported();
+  }
+
+  override markAsPending(_opts?: {onlySelf?: boolean; emitEvent?: boolean}): void {
+    throw this.unsupported();
+  }
+
+  private unsupported() {
+    return new RuntimeError(
+      SignalFormsErrorCode.UNSUPPORTED_FEATURE,
+      ngDevMode && 'this feature is not supported in SignalFormControl',
+    );
   }
 }
 

@@ -325,4 +325,90 @@ describe('SignalFormControl', () => {
     expect(form.touched).toBe(false);
     expect(form.dirty).toBe(false);
   });
+
+  describe('unsupported methods', () => {
+    it('should throw error when calling disable()', () => {
+      const form = createSignalFormControl(10);
+      expect(() => form.disable()).toThrowError(
+        /this feature is not supported in SignalFormControl/,
+      );
+    });
+
+    it('should throw error when calling enable()', () => {
+      const form = createSignalFormControl(10);
+      expect(() => form.enable()).toThrowError(
+        /this feature is not supported in SignalFormControl/,
+      );
+    });
+
+    it('should throw error when calling setValidators()', () => {
+      const form = createSignalFormControl(10);
+      expect(() => form.setValidators(null)).toThrowError(
+        /this feature is not supported in SignalFormControl/,
+      );
+    });
+
+    it('should throw error when calling setAsyncValidators()', () => {
+      const form = createSignalFormControl(10);
+      expect(() => form.setAsyncValidators(null)).toThrowError(
+        /this feature is not supported in SignalFormControl/,
+      );
+    });
+
+    it('should throw error when calling addValidators()', () => {
+      const form = createSignalFormControl(10);
+      expect(() => form.addValidators([])).toThrowError(
+        /this feature is not supported in SignalFormControl/,
+      );
+    });
+
+    it('should throw error when calling addAsyncValidators()', () => {
+      const form = createSignalFormControl(10);
+      expect(() => form.addAsyncValidators([])).toThrowError(
+        /this feature is not supported in SignalFormControl/,
+      );
+    });
+
+    it('should throw error when calling removeValidators()', () => {
+      const form = createSignalFormControl(10);
+      expect(() => form.removeValidators([])).toThrowError(
+        /this feature is not supported in SignalFormControl/,
+      );
+    });
+
+    it('should throw error when calling removeAsyncValidators()', () => {
+      const form = createSignalFormControl(10);
+      expect(() => form.removeAsyncValidators([])).toThrowError(
+        /this feature is not supported in SignalFormControl/,
+      );
+    });
+
+    it('should throw error when calling clearValidators()', () => {
+      const form = createSignalFormControl(10);
+      expect(() => form.clearValidators()).toThrowError(
+        /this feature is not supported in SignalFormControl/,
+      );
+    });
+
+    it('should throw error when calling clearAsyncValidators()', () => {
+      const form = createSignalFormControl(10);
+      expect(() => form.clearAsyncValidators()).toThrowError(
+        /this feature is not supported in SignalFormControl/,
+      );
+    });
+
+    it('should throw error when calling setErrors()', () => {
+      const form = createSignalFormControl(10);
+      expect(() => form.setErrors(null)).toThrowError(
+        /this feature is not supported in SignalFormControl/,
+      );
+    });
+
+    it('should throw error when calling markAsPending()', () => {
+      const form = createSignalFormControl(10);
+      expect(() => form.markAsPending()).toThrowError(
+        /this feature is not supported in SignalFormControl/,
+      );
+    });
+  });
 });

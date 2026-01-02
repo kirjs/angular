@@ -206,7 +206,43 @@ const formValue = computed(() => ({
 
 ## Bottom-up migration
 
-This is coming soon.
+### Integrating a Signal Form into a `FormGroup`
+
+You can use `SignalFormControl` to expose a signal-based form as a standard `FormControl`. This is useful when you want to migrate leaf nodes of a form to Signals while keeping the parent `FormGroup` structure.
+
+```typescript
+import {Component, inject, Injector, signal} from '@angular/core';
+import {ReactiveFormsModule, FormGroup} from '@angular/forms';
+import {SignalFormControl} from '@angular/forms/signals/compat';
+import {required} from '@angular/forms/signals';
+
+@Component({
+  // ...
+  imports: [ReactiveFormsModule],
+})
+export class UserProfile {
+  private injector = inject(Injector);
+
+  // 1. Create your signal model
+  email = signal('');
+
+  // 2. Wrap it in a SignalFormControl
+  // Note: SignalFormControl requires an Injector
+  emailControl = new SignalFormControl(this.email, this.injector, (p) => {
+    required(p, {message: 'Email is required'});
+  });
+
+  // 3. Use it in a legacy FormGroup
+  form = new FormGroup({
+    email: this.emailControl,
+  });
+}
+```
+
+The `SignalFormControl` synchronizes values and validation status bi-directionally:
+- **Signal -> Control**: Changing `email.set(...)` updates `emailControl.value` and the parent `form.value`.
+- **Control -> Signal**: Typing in the input (updating `emailControl`) updates the `email` signal.
+- **Validation**: Schema validators (like `required`) propagate errors to `emailControl.errors`.
 
 ## Automatic status classes
 

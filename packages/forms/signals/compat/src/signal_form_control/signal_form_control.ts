@@ -23,6 +23,7 @@ import {
   TouchedChangeEvent,
   ValidationErrors,
   ValueChangeEvent,
+  FormResetEvent,
 } from '@angular/forms';
 
 import {compatForm} from '../api/compat_form';
@@ -186,7 +187,16 @@ export class SignalFormControl<T> extends AbstractControl {
     }
   }
 
+  override getRawValue(): T {
+    return this.value;
+  }
+
   override reset(value?: any, options?: ValueUpdateOptions): void {
+    if (value && typeof value === 'object' && 'value' in value && 'disabled' in value) {
+      // Unbox the value for reset, ignoring the disabled state as it is driven by rules.
+      value = value.value;
+    }
+
     const resetValue = value ?? this.source();
     this.field().reset(resetValue as any);
 
@@ -197,6 +207,10 @@ export class SignalFormControl<T> extends AbstractControl {
         emitEvent: options?.emitEvent,
         sourceControl: this,
       } as any);
+    }
+
+    if (options?.emitEvent !== false) {
+      (this as any)._events.next(new FormResetEvent(this));
     }
   }
 

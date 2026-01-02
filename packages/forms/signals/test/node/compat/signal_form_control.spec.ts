@@ -326,6 +326,29 @@ describe('SignalFormControl', () => {
     expect(form.dirty).toBe(false);
   });
 
+  it('should return value for getRawValue', () => {
+    const form = createSignalFormControl(10);
+    expect(form.getRawValue()).toBe(10);
+  });
+
+  it('should unbox value in reset', () => {
+    const form = createSignalFormControl(10);
+    form.reset({value: 20, disabled: true});
+    expect(form.value).toBe(20);
+
+    expect(form.disabled).toBe(false);
+  });
+
+  it('should emit FormResetEvent on reset', () => {
+    const form = createSignalFormControl(10);
+    const events: any[] = [];
+    form.events.subscribe((e) => events.push(e));
+
+    form.reset(20);
+    const resetEvents = events.filter((e) => e.constructor.name === 'FormResetEvent');
+    expect(resetEvents.length).toBe(1);
+  });
+
   describe('unsupported methods', () => {
     it('should throw error when calling disable()', () => {
       const form = createSignalFormControl(10);

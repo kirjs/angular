@@ -320,43 +320,47 @@ export class SignalFormControl<T> extends AbstractControl {
 
   // Unsupported methods
   override disable(_opts?: {onlySelf?: boolean; emitEvent?: boolean}): void {
-    throw this.unsupported();
+    throw this.unsupported(
+      'Imperatively changing enabled/disabled status in form control is not supported in signal forms, instead use a disabled (+TODO link) rule',
+    );
   }
 
   override enable(_opts?: {onlySelf?: boolean; emitEvent?: boolean}): void {
-    throw this.unsupported();
+    throw this.unsupported(
+      'Imperatively changing enabled/disabled status in form control is not supported in signal forms, instead use a disabled (+TODO link) rule',
+    );
   }
 
   override setValidators(_validators: any): void {
-    throw this.unsupported();
+    throw this.unsupportedValidators();
   }
 
   override setAsyncValidators(_validators: any): void {
-    throw this.unsupported();
+    throw this.unsupportedValidators();
   }
 
   override addValidators(_validators: any): void {
-    throw this.unsupported();
+    throw this.unsupportedValidators();
   }
 
   override addAsyncValidators(_validators: any): void {
-    throw this.unsupported();
+    throw this.unsupportedValidators();
   }
 
   override removeValidators(_validators: any): void {
-    throw this.unsupported();
+    throw this.unsupportedValidators();
   }
 
   override removeAsyncValidators(_validators: any): void {
-    throw this.unsupported();
+    throw this.unsupportedValidators();
   }
 
   override clearValidators(): void {
-    throw this.unsupported();
+    throw this.unsupportedValidators();
   }
 
   override clearAsyncValidators(): void {
-    throw this.unsupported();
+    throw this.unsupportedValidators();
   }
 
   override setErrors(_errors: any, _opts?: {emitEvent?: boolean}): void {
@@ -367,10 +371,16 @@ export class SignalFormControl<T> extends AbstractControl {
     throw this.unsupported();
   }
 
-  private unsupported() {
+  private unsupported(message?: string) {
     return new RuntimeError(
       SignalFormsErrorCode.UNSUPPORTED_FEATURE,
-      ngDevMode && 'this feature is not supported in SignalFormControl',
+      ngDevMode && (message ?? 'this feature is not supported in SignalFormControl'),
+    );
+  }
+
+  private unsupportedValidators() {
+    return this.unsupported(
+      'Dynamically adding and removing validators is not supported in signal forms. Instead use applyWhen (TODO link) rule.',
     );
   }
 }

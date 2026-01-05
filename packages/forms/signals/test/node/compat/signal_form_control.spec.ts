@@ -27,396 +27,418 @@ function createSignalFormControl<T>(initialValue: T, schema?: SchemaFn<T>) {
  * - Disable/Enable should throw an error?
  */
 describe('SignalFormControl', () => {
-  it('should have the same value as the signal', () => {
-    const form = createSignalFormControl(10);
+  describe('value and state access', () => {
+    it('should have the same value as the signal', () => {
+      const form = createSignalFormControl(10);
 
-    expect(form.value).toBe(10);
-    form.setValue(20);
-    expect(form.value).toBe(20);
-  });
-
-  it('should expose fieldState', () => {
-    const form = createSignalFormControl(10);
-    expect(form.fieldState.value()).toBe(10);
-
-    form.setValue(20);
-    expect(form.fieldState.value()).toBe(20);
-  });
-
-  it('should validate', () => {
-    const form = createSignalFormControl<number | undefined>(undefined, (p) => {
-      required(p);
+      expect(form.value).toBe(10);
+      form.setValue(20);
+      expect(form.value).toBe(20);
     });
 
-    form.updateValueAndValidity();
+    it('should expose fieldState', () => {
+      const form = createSignalFormControl(10);
+      expect(form.fieldState.value()).toBe(10);
 
-    expect(form.valid).toBe(false);
-
-    form.setValue(100);
-    expect(form.valid).toBe(true);
-
-    form.setValue(undefined);
-    expect(form.valid).toBe(false);
-  });
-
-  it('should expose validation errors through the errors getter', () => {
-    const form = createSignalFormControl<number | undefined>(undefined, (p) => {
-      required(p);
+      form.setValue(20);
+      expect(form.fieldState.value()).toBe(20);
     });
 
-    let errors = form.errors;
-    expect(errors).not.toBeNull();
-    expect(errors!['required']).toEqual(jasmine.objectContaining({kind: 'required'}));
-
-    form.setValue(1);
-    errors = form.errors;
-    expect(errors).toBeNull();
-  });
-
-  it('should emit valueChanges when the value updates', () => {
-    const form = createSignalFormControl(10);
-    const emissions: number[] = [];
-
-    form.valueChanges.subscribe((v) => emissions.push(v));
-
-    form.setValue(20);
-    TestBed.flushEffects();
-    expect(emissions).toEqual([20]);
-
-    form.setValue(30);
-    TestBed.flushEffects();
-    expect(emissions).toEqual([20, 30]);
-  });
-
-  it('should emit statusChanges when validity toggles', () => {
-    const form = createSignalFormControl<number | undefined>(undefined, (p) => {
-      required(p);
+    it('should return value for getRawValue', () => {
+      const form = createSignalFormControl(10);
+      expect(form.getRawValue()).toBe(10);
     });
-    const statuses: FormControlStatus[] = [];
-
-    form.statusChanges.subscribe((status) => statuses.push(status));
-
-    form.setValue(1);
-    TestBed.flushEffects();
-    expect(statuses).toEqual(['VALID']);
-
-    form.setValue(undefined);
-    TestBed.flushEffects();
-    expect(statuses).toEqual(['VALID', 'INVALID']);
-
-    form.setValue(10);
-    TestBed.flushEffects();
-    expect(statuses).toEqual(['VALID', 'INVALID', 'VALID']);
   });
 
-  it('should synchronize value with parent FormGroup', () => {
-    const child = createSignalFormControl('meow');
-    const group = new FormGroup({
-      child: child,
-    });
-
-    child.fieldState.value.set('wuf');
-    expect(group.value).toEqual({child: 'wuf'});
-  });
-
-  it('should propagate validity to parent FormGroup', () => {
-    const child = createSignalFormControl<string>('valid', (p) => required(p));
-    const group = new FormGroup({
-      child: child,
-    });
-
-    expect(group.valid).withContext('Valid initially').toBe(true);
-    child.fieldState.value.set('');
-    expect(group.valid).withContext('Invalid immediately on value change').toBe(false);
-    group.controls.child.setValue('meow');
-    expect(group.valid).withContext('Valid initially').toBe(true);
-  });
-
-  it('should emit ValueChangeEvent on events observable', () => {
-    const form = createSignalFormControl(10);
-    const events: any[] = [];
-
-    form.events.subscribe((e) => events.push(e));
-
-    form.setValue(20);
-    TestBed.flushEffects();
-
-    const valueEvents = events.filter((e) => e.constructor.name === 'ValueChangeEvent');
-    expect(valueEvents.length).toBeGreaterThan(0);
-    expect(valueEvents[valueEvents.length - 1].value).toBe(20);
-  });
-
-  it('should emit StatusChangeEvent on events observable when status changes', () => {
-    const form = createSignalFormControl<number | undefined>(10, (p) => required(p));
-
-    // Flush initial effects to set up tracking
-    TestBed.flushEffects();
-
-    const events: any[] = [];
-    form.events.subscribe((e) => events.push(e));
-
-    form.setValue(undefined);
-    TestBed.flushEffects();
-
-    const statusEvents = events.filter((e) => e.constructor.name === 'StatusChangeEvent');
-    expect(statusEvents.length).toBeGreaterThan(0);
-    expect(statusEvents[statusEvents.length - 1].status).toBe('INVALID');
-  });
-
-  it('should emit TouchedChangeEvent on events observable', () => {
-    const form = createSignalFormControl(10);
-
-    // Flush initial effects to set up tracking
-    TestBed.flushEffects();
-
-    const events: any[] = [];
-    form.events.subscribe((e) => events.push(e));
-
-    form.markAsTouched();
-    TestBed.flushEffects();
-
-    const touchedEvents = events.filter((e) => e.constructor.name === 'TouchedChangeEvent');
-    expect(touchedEvents.length).toBe(1);
-    expect(touchedEvents[0].touched).toBe(true);
-  });
-
-  it('should emit PristineChangeEvent on events observable when dirty changes', () => {
-    const form = createSignalFormControl(10);
-
-    // Flush initial effects to set up tracking
-    TestBed.flushEffects();
-
-    const events: any[] = [];
-    form.events.subscribe((e) => events.push(e));
-
-    form.markAsDirty();
-    TestBed.flushEffects();
-
-    const pristineEvents = events.filter((e) => e.constructor.name === 'PristineChangeEvent');
-    expect(pristineEvents.length).toBeGreaterThan(0);
-    expect(pristineEvents[pristineEvents.length - 1].pristine).toBe(false);
-  });
-
-  it('should expose pending status for async validators', async () => {
-    const pendingResolvers: Array<(errors: ValidationError[]) => void> = [];
-    const resolveNext = (errors: ValidationError[]) => {
-      TestBed.flushEffects();
-      expect(pendingResolvers.length).toBeGreaterThan(0);
-      pendingResolvers.shift()!(errors);
-    };
-
-    const form = createSignalFormControl('initial', (p) => {
-      validateAsync(p, {
-        params: ({value}) => value(),
-        factory: (params) =>
-          resource({
-            params,
-            loader: () =>
-              new Promise<ValidationError[]>((resolve) => {
-                pendingResolvers.push(resolve);
-              }),
-          }),
-        onSuccess: (errors) => errors,
-        onError: () => null,
+  describe('validation', () => {
+    it('should validate', () => {
+      const form = createSignalFormControl<number | undefined>(undefined, (p) => {
+        required(p);
       });
-    });
-    const appRef = TestBed.inject(ApplicationRef);
 
-    expect(form.pending).toBe(true);
-    expect(form.status).toBe('PENDING');
+      form.updateValueAndValidity();
 
-    resolveNext([]);
-    await appRef.whenStable();
-    TestBed.flushEffects();
+      expect(form.valid).toBe(false);
 
-    expect(form.pending).toBe(false);
-    expect(form.status).toBe('VALID');
+      form.setValue(100);
+      expect(form.valid).toBe(true);
 
-    form.setValue('invalid');
-    TestBed.flushEffects();
-
-    expect(form.pending).toBe(true);
-    expect(form.status).toBe('PENDING');
-
-    resolveNext([customError({kind: 'async-invalid'})]);
-    await appRef.whenStable();
-    TestBed.flushEffects();
-
-    expect(form.pending).toBe(false);
-    expect(form.status).toBe('INVALID');
-    expect(form.errors?.['async-invalid']).toEqual(
-      jasmine.objectContaining({kind: 'async-invalid'}),
-    );
-  });
-
-  it('should support disabled via rules', () => {
-    const form = createSignalFormControl(10, (p) => {
-      disabled(p, ({value}) => value() > 15);
+      form.setValue(undefined);
+      expect(form.valid).toBe(false);
     });
 
-    expect(form.disabled).toBe(false);
-    expect(form.status).toBe('VALID');
+    it('should expose validation errors through the errors getter', () => {
+      const form = createSignalFormControl<number | undefined>(undefined, (p) => {
+        required(p);
+      });
 
-    form.setValue(20);
+      let errors = form.errors;
+      expect(errors).not.toBeNull();
+      expect(errors!['required']).toEqual(jasmine.objectContaining({kind: 'required'}));
 
-    expect(form.disabled).toBe(true);
-    expect(form.status).toBe('DISABLED');
+      form.setValue(1);
+      errors = form.errors;
+      expect(errors).toBeNull();
+    });
+
+    it('should expose pending status for async validators', async () => {
+      const pendingResolvers: Array<(errors: ValidationError[]) => void> = [];
+      const resolveNext = (errors: ValidationError[]) => {
+        TestBed.flushEffects();
+        expect(pendingResolvers.length).toBeGreaterThan(0);
+        pendingResolvers.shift()!(errors);
+      };
+
+      const form = createSignalFormControl('initial', (p) => {
+        validateAsync(p, {
+          params: ({value}) => value(),
+          factory: (params) =>
+            resource({
+              params,
+              loader: () =>
+                new Promise<ValidationError[]>((resolve) => {
+                  pendingResolvers.push(resolve);
+                }),
+            }),
+          onSuccess: (errors) => errors,
+          onError: () => null,
+        });
+      });
+      const appRef = TestBed.inject(ApplicationRef);
+
+      expect(form.pending).toBe(true);
+      expect(form.status).toBe('PENDING');
+
+      resolveNext([]);
+      await appRef.whenStable();
+      TestBed.flushEffects();
+
+      expect(form.pending).toBe(false);
+      expect(form.status).toBe('VALID');
+
+      form.setValue('invalid');
+      TestBed.flushEffects();
+
+      expect(form.pending).toBe(true);
+      expect(form.status).toBe('PENDING');
+
+      resolveNext([customError({kind: 'async-invalid'})]);
+      await appRef.whenStable();
+      TestBed.flushEffects();
+
+      expect(form.pending).toBe(false);
+      expect(form.status).toBe('INVALID');
+      expect(form.errors?.['async-invalid']).toEqual(
+        jasmine.objectContaining({kind: 'async-invalid'}),
+      );
+    });
+
+    it('should support disabled via rules', () => {
+      const form = createSignalFormControl(10, (p) => {
+        disabled(p, ({value}) => value() > 15);
+      });
+
+      expect(form.disabled).toBe(false);
+      expect(form.status).toBe('VALID');
+
+      form.setValue(20);
+
+      expect(form.disabled).toBe(true);
+      expect(form.status).toBe('DISABLED');
+    });
   });
 
-  it('should support markAsTouched', () => {
-    const form = createSignalFormControl(10);
+  describe('status management (dirty/touched)', () => {
+    it('should support markAsTouched', () => {
+      const form = createSignalFormControl(10);
 
-    expect(form.touched).toBe(false);
-    form.markAsTouched();
-    expect(form.touched).toBe(true);
+      expect(form.touched).toBe(false);
+      form.markAsTouched();
+      expect(form.touched).toBe(true);
+    });
+
+    it('should support markAsDirty', () => {
+      const form = createSignalFormControl(10);
+
+      expect(form.dirty).toBe(false);
+      form.markAsDirty();
+      expect(form.dirty).toBe(true);
+    });
+
+    it('should support markAsPristine', () => {
+      const form = createSignalFormControl(10);
+
+      form.markAsDirty();
+      expect(form.dirty).toBe(true);
+
+      form.markAsPristine();
+      expect(form.dirty).toBe(false);
+    });
+
+    it('should support markAsUntouched', () => {
+      const form = createSignalFormControl(10);
+
+      form.markAsTouched();
+      expect(form.touched).toBe(true);
+
+      form.markAsUntouched();
+      expect(form.touched).toBe(false);
+    });
   });
 
-  it('should support markAsDirty', () => {
-    const form = createSignalFormControl(10);
+  describe('observables and events', () => {
+    it('should emit valueChanges when the value updates', () => {
+      const form = createSignalFormControl(10);
+      const emissions: number[] = [];
 
-    expect(form.dirty).toBe(false);
-    form.markAsDirty();
-    expect(form.dirty).toBe(true);
+      form.valueChanges.subscribe((v) => emissions.push(v));
+
+      form.setValue(20);
+      TestBed.flushEffects();
+      expect(emissions).toEqual([20]);
+
+      form.setValue(30);
+      TestBed.flushEffects();
+      expect(emissions).toEqual([20, 30]);
+    });
+
+    it('should emit statusChanges when validity toggles', () => {
+      const form = createSignalFormControl<number | undefined>(undefined, (p) => {
+        required(p);
+      });
+      const statuses: FormControlStatus[] = [];
+
+      form.statusChanges.subscribe((status) => statuses.push(status));
+
+      form.setValue(1);
+      TestBed.flushEffects();
+      expect(statuses).toEqual(['VALID']);
+
+      form.setValue(undefined);
+      TestBed.flushEffects();
+      expect(statuses).toEqual(['VALID', 'INVALID']);
+
+      form.setValue(10);
+      TestBed.flushEffects();
+      expect(statuses).toEqual(['VALID', 'INVALID', 'VALID']);
+    });
+
+    it('should emit ValueChangeEvent on events observable', () => {
+      const form = createSignalFormControl(10);
+      const events: any[] = [];
+
+      form.events.subscribe((e) => events.push(e));
+
+      form.setValue(20);
+      TestBed.flushEffects();
+
+      const valueEvents = events.filter((e) => e.constructor.name === 'ValueChangeEvent');
+      expect(valueEvents.length).toBeGreaterThan(0);
+      expect(valueEvents[valueEvents.length - 1].value).toBe(20);
+    });
+
+    it('should emit StatusChangeEvent on events observable when status changes', () => {
+      const form = createSignalFormControl<number | undefined>(10, (p) => required(p));
+
+      // Flush initial effects to set up tracking
+      TestBed.flushEffects();
+
+      const events: any[] = [];
+      form.events.subscribe((e) => events.push(e));
+
+      form.setValue(undefined);
+      TestBed.flushEffects();
+
+      const statusEvents = events.filter((e) => e.constructor.name === 'StatusChangeEvent');
+      expect(statusEvents.length).toBeGreaterThan(0);
+      expect(statusEvents[statusEvents.length - 1].status).toBe('INVALID');
+    });
+
+    it('should emit TouchedChangeEvent on events observable', () => {
+      const form = createSignalFormControl(10);
+
+      // Flush initial effects to set up tracking
+      TestBed.flushEffects();
+
+      const events: any[] = [];
+      form.events.subscribe((e) => events.push(e));
+
+      form.markAsTouched();
+      TestBed.flushEffects();
+
+      const touchedEvents = events.filter((e) => e.constructor.name === 'TouchedChangeEvent');
+      expect(touchedEvents.length).toBe(1);
+      expect(touchedEvents[0].touched).toBe(true);
+    });
+
+    it('should emit PristineChangeEvent on events observable when dirty changes', () => {
+      const form = createSignalFormControl(10);
+
+      // Flush initial effects to set up tracking
+      TestBed.flushEffects();
+
+      const events: any[] = [];
+      form.events.subscribe((e) => events.push(e));
+
+      form.markAsDirty();
+      TestBed.flushEffects();
+
+      const pristineEvents = events.filter((e) => e.constructor.name === 'PristineChangeEvent');
+      expect(pristineEvents.length).toBeGreaterThan(0);
+      expect(pristineEvents[pristineEvents.length - 1].pristine).toBe(false);
+    });
   });
 
-  it('should support markAsPristine', () => {
-    const form = createSignalFormControl(10);
+  describe('integration with parent', () => {
+    it('should synchronize value with parent FormGroup immediately', () => {
+      const child = createSignalFormControl('meow');
+      const group = new FormGroup({
+        child: child,
+      });
 
-    form.markAsDirty();
-    expect(form.dirty).toBe(true);
+      child.fieldState.value.set('wuf');
+      expect(group.value).toEqual({child: 'wuf'});
+    });
 
-    form.markAsPristine();
-    expect(form.dirty).toBe(false);
+    it('should synchronize nested value with parent FormGroup immediately', () => {
+      const child = createSignalFormControl({name: 'pirojok', says: 'meow'});
+      const group = new FormGroup({
+        child: child,
+      });
+
+      child.field.says.value.set('wuf');
+      expect(group.value).toEqual({child: 'wuf'});
+    });
+
+    it('should propagate validity to parent FormGroup immediately', () => {
+      const child = createSignalFormControl<string>('valid', (p) => required(p));
+      const group = new FormGroup({
+        child: child,
+      });
+
+      expect(group.valid).withContext('Valid initially').toBe(true);
+      child.fieldState.value.set('');
+      expect(group.valid).withContext('Invalid immediately on value change').toBe(false);
+      group.controls.child.setValue('meow');
+      expect(group.valid).withContext('Valid initially').toBe(true);
+    });
   });
 
-  it('should support markAsUntouched', () => {
-    const form = createSignalFormControl(10);
+  describe('reset', () => {
+    it('should reset touched and dirty state', () => {
+      const form = createSignalFormControl(10);
 
-    form.markAsTouched();
-    expect(form.touched).toBe(true);
+      form.markAsTouched();
+      form.markAsDirty();
+      expect(form.touched).toBe(true);
+      expect(form.dirty).toBe(true);
 
-    form.markAsUntouched();
-    expect(form.touched).toBe(false);
-  });
+      form.reset(10);
+      expect(form.touched).toBe(false);
+      expect(form.dirty).toBe(false);
+      expect(form.value).toBe(10);
+    });
 
-  it('should reset touched and dirty state', () => {
-    const form = createSignalFormControl(10);
+    it('should reset with a new value', () => {
+      const form = createSignalFormControl(10);
 
-    form.markAsTouched();
-    form.markAsDirty();
-    expect(form.touched).toBe(true);
-    expect(form.dirty).toBe(true);
+      form.markAsTouched();
+      form.markAsDirty();
 
-    form.reset(10);
-    expect(form.touched).toBe(false);
-    expect(form.dirty).toBe(false);
-    expect(form.value).toBe(10);
-  });
+      form.reset(42);
+      expect(form.value).toBe(42);
+      expect(form.source()).toBe(42);
+      expect(form.touched).toBe(false);
+      expect(form.dirty).toBe(false);
+    });
 
-  it('should reset with a new value', () => {
-    const form = createSignalFormControl(10);
+    it('should unbox value in reset', () => {
+      const form = createSignalFormControl(10);
+      form.reset({value: 20, disabled: true});
+      expect(form.value).toBe(20);
 
-    form.markAsTouched();
-    form.markAsDirty();
+      expect(form.disabled).toBe(false);
+    });
 
-    form.reset(42);
-    expect(form.value).toBe(42);
-    expect(form.source()).toBe(42);
-    expect(form.touched).toBe(false);
-    expect(form.dirty).toBe(false);
-  });
+    it('should emit FormResetEvent on reset', () => {
+      const form = createSignalFormControl(10);
+      const events: any[] = [];
+      form.events.subscribe((e) => events.push(e));
 
-  it('should return value for getRawValue', () => {
-    const form = createSignalFormControl(10);
-    expect(form.getRawValue()).toBe(10);
-  });
-
-  it('should unbox value in reset', () => {
-    const form = createSignalFormControl(10);
-    form.reset({value: 20, disabled: true});
-    expect(form.value).toBe(20);
-
-    expect(form.disabled).toBe(false);
-  });
-
-  it('should emit FormResetEvent on reset', () => {
-    const form = createSignalFormControl(10);
-    const events: any[] = [];
-    form.events.subscribe((e) => events.push(e));
-
-    form.reset(20);
-    const resetEvents = events.filter((e) => e.constructor.name === 'FormResetEvent');
-    expect(resetEvents.length).toBe(1);
+      form.reset(20);
+      const resetEvents = events.filter((e) => e.constructor.name === 'FormResetEvent');
+      expect(resetEvents.length).toBe(1);
+    });
   });
 
   describe('unsupported methods', () => {
     it('should throw error when calling disable()', () => {
       const form = createSignalFormControl(10);
       expect(() => form.disable()).toThrowError(
-        /this feature is not supported in SignalFormControl/,
+        /Imperatively changing enabled\/disabled status in form control is not supported/,
       );
     });
 
     it('should throw error when calling enable()', () => {
       const form = createSignalFormControl(10);
       expect(() => form.enable()).toThrowError(
-        /this feature is not supported in SignalFormControl/,
+        /Imperatively changing enabled\/disabled status in form control is not supported/,
       );
     });
 
     it('should throw error when calling setValidators()', () => {
       const form = createSignalFormControl(10);
       expect(() => form.setValidators(null)).toThrowError(
-        /this feature is not supported in SignalFormControl/,
+        /Dynamically adding and removing validators is not supported/,
       );
     });
 
     it('should throw error when calling setAsyncValidators()', () => {
       const form = createSignalFormControl(10);
       expect(() => form.setAsyncValidators(null)).toThrowError(
-        /this feature is not supported in SignalFormControl/,
+        /Dynamically adding and removing validators is not supported/,
       );
     });
 
     it('should throw error when calling addValidators()', () => {
       const form = createSignalFormControl(10);
       expect(() => form.addValidators([])).toThrowError(
-        /this feature is not supported in SignalFormControl/,
+        /Dynamically adding and removing validators is not supported/,
       );
     });
 
     it('should throw error when calling addAsyncValidators()', () => {
       const form = createSignalFormControl(10);
       expect(() => form.addAsyncValidators([])).toThrowError(
-        /this feature is not supported in SignalFormControl/,
+        /Dynamically adding and removing validators is not supported/,
       );
     });
 
     it('should throw error when calling removeValidators()', () => {
       const form = createSignalFormControl(10);
       expect(() => form.removeValidators([])).toThrowError(
-        /this feature is not supported in SignalFormControl/,
+        /Dynamically adding and removing validators is not supported/,
       );
     });
 
     it('should throw error when calling removeAsyncValidators()', () => {
       const form = createSignalFormControl(10);
       expect(() => form.removeAsyncValidators([])).toThrowError(
-        /this feature is not supported in SignalFormControl/,
+        /Dynamically adding and removing validators is not supported/,
       );
     });
 
     it('should throw error when calling clearValidators()', () => {
       const form = createSignalFormControl(10);
       expect(() => form.clearValidators()).toThrowError(
-        /this feature is not supported in SignalFormControl/,
+        /Dynamically adding and removing validators is not supported/,
       );
     });
 
     it('should throw error when calling clearAsyncValidators()', () => {
       const form = createSignalFormControl(10);
       expect(() => form.clearAsyncValidators()).toThrowError(
-        /this feature is not supported in SignalFormControl/,
+        /Dynamically adding and removing validators is not supported/,
       );
     });
 

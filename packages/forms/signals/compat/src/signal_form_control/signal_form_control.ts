@@ -27,6 +27,7 @@ import {
 } from '@angular/forms';
 
 import {compatForm} from '../api/compat_form';
+import {signalErrorsToValidationErrors} from '../../../src/api/rules/validation/validation_errors';
 import {FieldState, FieldTree, SchemaFn} from '../../../src/api/types';
 import {SignalFormsErrorCode} from '../../../src/errors';
 import {removeListItem} from '../../../../src/util';
@@ -78,9 +79,7 @@ export class SignalFormControl<T> extends AbstractControl {
     });
     Object.defineProperty(this, 'errors', {
       get: () => {
-        const errors = this.fieldTree().errors();
-        if (!errors?.length) return null;
-        return Object.fromEntries(errors.map((e) => [e.kind, e])) as ValidationErrors;
+        return signalErrorsToValidationErrors(this.fieldTree().errors());
       },
       enumerable: true,
       configurable: true,

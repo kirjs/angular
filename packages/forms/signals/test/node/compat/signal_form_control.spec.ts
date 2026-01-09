@@ -36,12 +36,12 @@ describe('SignalFormControl', () => {
       expect(form.value).toBe(20);
     });
 
-    it('should expose fieldState', () => {
+    it('should expose fieldTree', () => {
       const form = createSignalFormControl(10);
-      expect(form.fieldState.value()).toBe(10);
+      expect(form.fieldTree().value()).toBe(10);
 
       form.setValue(20);
-      expect(form.fieldState.value()).toBe(20);
+      expect(form.fieldTree().value()).toBe(20);
     });
 
     it('should return value for getRawValue', () => {
@@ -296,7 +296,7 @@ describe('SignalFormControl', () => {
         child: child,
       });
 
-      child.fieldState.value.set('wuf');
+      child.fieldTree().value.set('wuf');
       expect(group.value).toEqual({child: 'wuf'});
     });
 
@@ -306,8 +306,8 @@ describe('SignalFormControl', () => {
         child: child,
       });
 
-      child.field.says.value.set('wuf');
-      expect(group.value).toEqual({child: 'wuf'});
+      child.fieldTree.says().value.set('wuf');
+      expect(group.value).toEqual({child: {name: 'pirojok', says: 'wuf'}});
     });
 
     it('should propagate validity to parent FormGroup immediately', () => {
@@ -317,7 +317,7 @@ describe('SignalFormControl', () => {
       });
 
       expect(group.valid).withContext('Valid initially').toBe(true);
-      child.fieldState.value.set('');
+      child.fieldTree().value.set('');
       expect(group.valid).withContext('Invalid immediately on value change').toBe(false);
       group.controls.child.setValue('meow');
       expect(group.valid).withContext('Valid initially').toBe(true);

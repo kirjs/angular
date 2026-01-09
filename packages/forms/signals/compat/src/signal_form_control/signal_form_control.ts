@@ -39,12 +39,12 @@ export type ValueUpdateOptions = {
 };
 
 export class SignalFormControl<T> extends AbstractControl {
-  fieldState!: FieldState<T>;
-
-  private readonly field: FieldTree<T>;
+  public fieldTree: FieldTree<T>;
   private pendingParentNotifications = 0;
   private readonly onChangeCallbacks: Array<(value?: any, emitModelEvent?: boolean) => void> = [];
   private readonly onDisabledChangeCallbacks: Array<(isDisabled: boolean) => void> = [];
+  override readonly valueChanges = new EventEmitter<T>();
+  override readonly statusChanges = new EventEmitter<FormControlStatus>();
 
   // Track previous states to emit events only on actual changes
   private lastState = {
@@ -61,31 +61,24 @@ export class SignalFormControl<T> extends AbstractControl {
   ) {
     super(null, null);
 
-    this.field = schema ? compatForm(source, schema, {injector}) : compatForm(source, {injector});
+    const rawTree = schema
+      ? compatForm(source, schema, {injector})
+      : compatForm(source, {injector});
+    this.fieldTree = wrapFieldTreeForSyncUpdates(rawTree, () =>
+      this.parent?.updateValueAndValidity({sourceControl: this} as any),
+    );
 
-    this.defineProperties();
-    this.setupEffects(injector);
-  }
-
-  private defineProperties(): void {
+    // Define value and errors as getters (Object.defineProperty is needed because
+    // AbstractControl declares them as properties, and TypeScript doesn't allow
+    // overriding a property with a getter).
     Object.defineProperty(this, 'value', {
       get: () => this.source(),
       enumerable: true,
       configurable: true,
     });
-
-    Object.defineProperty(this, 'fieldState', {
-      get: () =>
-        wrapFieldStateForSyncUpdates(this.field(), () =>
-          this.parent?.updateValueAndValidity({sourceControl: this} as any),
-        ),
-      enumerable: true,
-      configurable: true,
-    });
-
     Object.defineProperty(this, 'errors', {
       get: () => {
-        const errors = this.field().errors();
+        const errors = this.fieldTree().errors();
         if (!errors?.length) return null;
         return Object.fromEntries(errors.map((e) => [e.kind, e])) as ValidationErrors;
       },
@@ -93,8 +86,7 @@ export class SignalFormControl<T> extends AbstractControl {
       configurable: true,
     });
 
-    (this as any).valueChanges = new EventEmitter();
-    (this as any).statusChanges = new EventEmitter();
+    this.setupEffects(injector);
   }
 
   private setupEffects(injector: Injector): void {
@@ -107,7 +99,7 @@ export class SignalFormControl<T> extends AbstractControl {
         } else {
           this.parent?.updateValueAndValidity({sourceControl: this} as any);
         }
-        (this.valueChanges as EventEmitter<T>).emit(value);
+        this.valueChanges.emit(value);
         (this as any)._events.next(new ValueChangeEvent(value, this));
       },
       {injector},
@@ -117,7 +109,7 @@ export class SignalFormControl<T> extends AbstractControl {
     effect(
       () => {
         const status = this.status;
-        (this.statusChanges as EventEmitter<FormControlStatus>).emit(status);
+        this.statusChanges.emit(status);
         this.emitOnChange('status', status, () =>
           (this as any)._events.next(new StatusChangeEvent(status, this)),
         );
@@ -131,7 +123,7 @@ export class SignalFormControl<T> extends AbstractControl {
     // Touched changes
     effect(
       () => {
-        const touched = this.field().touched();
+        const touched = this.fieldTree().touched();
         this.emitOnChange('touched', touched, () =>
           (this as any)._events.next(new TouchedChangeEvent(touched, this)),
         );
@@ -142,7 +134,7 @@ export class SignalFormControl<T> extends AbstractControl {
     // Dirty changes
     effect(
       () => {
-        const dirty = this.field().dirty();
+        const dirty = this.fieldTree().dirty();
         this.emitOnChange('dirty', dirty, () =>
           (this as any)._events.next(new PristineChangeEvent(!dirty, this)),
         );
@@ -198,7 +190,7 @@ export class SignalFormControl<T> extends AbstractControl {
     }
 
     const resetValue = value ?? this.source();
-    this.field().reset(resetValue as any);
+    this.fieldTree().reset(resetValue as any);
 
     if (value !== undefined) {
       this.updateValue(value, options);
@@ -247,7 +239,7 @@ export class SignalFormControl<T> extends AbstractControl {
   // --- State getters (delegated to field) ---
 
   override get status(): FormControlStatus {
-    const f = this.field();
+    const f = this.fieldTree();
     if (f.disabled()) return 'DISABLED';
     if (f.valid()) return 'VALID';
     if (f.invalid()) return 'INVALID';
@@ -255,27 +247,33 @@ export class SignalFormControl<T> extends AbstractControl {
   }
 
   override get dirty(): boolean {
-    return this.field().dirty();
+    return this.fieldTree().dirty();
   }
+
   override set dirty(_: boolean) {} // No-op: state is derived from signal
 
   override get touched(): boolean {
-    return this.field().touched();
+    return this.fieldTree().touched();
   }
+
   override set touched(_: boolean) {} // No-op: state is derived from signal
 
   override get valid(): boolean {
-    return this.field().valid();
+    return this.fieldTree().valid();
   }
+
   override get invalid(): boolean {
-    return this.field().invalid();
+    return this.fieldTree().invalid();
   }
+
   override get pending(): boolean {
-    return this.field().pending();
+    return this.fieldTree().pending();
   }
+
   override get disabled(): boolean {
-    return this.field().disabled();
+    return this.fieldTree().disabled();
   }
+
   override get enabled(): boolean {
     return !this.disabled;
   }
@@ -283,22 +281,22 @@ export class SignalFormControl<T> extends AbstractControl {
   // --- State mutation methods ---
 
   override markAsTouched(opts?: {onlySelf?: boolean}): void {
-    this.field().markAsTouched();
+    this.fieldTree().markAsTouched();
     super.markAsTouched(opts);
   }
 
   override markAsDirty(opts?: {onlySelf?: boolean}): void {
-    this.field().markAsDirty();
+    this.fieldTree().markAsDirty();
     super.markAsDirty(opts);
   }
 
   override markAsPristine(opts?: {onlySelf?: boolean}): void {
-    this.field().reset(this.source() as any); // reset() clears pristine internally
+    this.fieldTree().reset(this.source() as any); // reset() clears pristine internally
     super.markAsPristine(opts);
   }
 
   override markAsUntouched(opts?: {onlySelf?: boolean}): void {
-    this.field().reset(this.source() as any); // reset() clears touched internally
+    this.fieldTree().reset(this.source() as any); // reset() clears touched internally
     super.markAsUntouched(opts);
   }
 
@@ -307,13 +305,17 @@ export class SignalFormControl<T> extends AbstractControl {
   // --- Internal methods required by AbstractControl ---
 
   _updateValue(): void {}
+
   _forEachChild(_cb: (c: AbstractControl) => void): void {}
+
   _anyControls(_condition: (c: AbstractControl) => boolean): boolean {
     return false;
   }
+
   _allControlsDisabled(): boolean {
     return this.disabled;
   }
+
   _syncPendingControls(): boolean {
     return false;
   }
@@ -393,17 +395,45 @@ export function SignalFormControlFactory<T>(
   return new SignalFormControl(source, injector, schema);
 }
 
+/** Wraps FieldTree to trigger synchronous parent notification on field updates. */
+function wrapFieldTreeForSyncUpdates<T>(tree: FieldTree<T>, onUpdate: () => void): FieldTree<T> {
+  return new Proxy(tree, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+      if (
+        typeof value === 'function' &&
+        typeof prop === 'string' &&
+        !['apply', 'call', 'bind', 'constructor'].includes(prop) &&
+        prop !== 'Symbol(Symbol.iterator)'
+      ) {
+        return wrapFieldTreeForSyncUpdates(value as any, onUpdate);
+      }
+      return value;
+    },
+    apply(target, thisArg, argArray) {
+      const state = Reflect.apply(target as Function, thisArg, argArray);
+      return wrapFieldStateForSyncUpdates(state, onUpdate);
+    },
+  }) as any;
+}
+
 /** Wraps FieldState.value to trigger synchronous parent notification on set/update. */
 function wrapFieldStateForSyncUpdates<T>(
   state: FieldState<T>,
   onUpdate: () => void,
 ): FieldState<T> {
   const {value} = state;
-  return {
-    ...state,
-    value: Object.assign(() => value(), {
-      set: (v: T) => (value.set(v), onUpdate()),
-      update: (fn: (v: T) => T) => (value.update(fn), onUpdate()),
-    }) as WritableSignal<T>,
-  };
+  const wrappedValue = Object.assign((...args: any[]) => (value as any)(...args), {
+    set: (v: T) => (value.set(v), onUpdate()),
+    update: (fn: (v: T) => T) => (value.update(fn), onUpdate()),
+  }) as WritableSignal<any>;
+
+  return new Proxy(state, {
+    get(target, prop, receiver) {
+      if (prop === 'value') {
+        return wrappedValue;
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
 }

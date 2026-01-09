@@ -369,6 +369,16 @@ describe('SignalFormControl', () => {
       const resetEvents = events.filter((e) => e.constructor.name === 'FormResetEvent');
       expect(resetEvents.length).toBe(1);
     });
+
+    it('should NOT emit FormResetEvent on reset when emitEvent is false', () => {
+      const form = createSignalFormControl(10);
+      const events: any[] = [];
+      form.events.subscribe((e) => events.push(e));
+
+      form.reset(20, {emitEvent: false});
+      const resetEvents = events.filter((e) => e.constructor.name === 'FormResetEvent');
+      expect(resetEvents.length).toBe(0);
+    });
   });
 
   describe('unsupported methods', () => {

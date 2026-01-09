@@ -24,6 +24,7 @@ import {
   ValidationErrors,
   ValueChangeEvent,
   FormResetEvent,
+  FormControlState,
 } from '@angular/forms';
 
 import {compatForm} from '../api/compat_form';
@@ -182,9 +183,8 @@ export class SignalFormControl<T> extends AbstractControl {
     return this.value;
   }
 
-  override reset(value?: any, options?: ValueUpdateOptions): void {
-    if (value && typeof value === 'object' && 'value' in value && 'disabled' in value) {
-      // Unbox the value for reset, ignoring the disabled state as it is driven by rules.
+  override reset(value?: T | FormControlState<T>, options?: ValueUpdateOptions): void {
+    if (isFormControlState(value)) {
       value = value.value;
     }
 
@@ -435,4 +435,14 @@ function wrapFieldStateForSyncUpdates<T>(
       return Reflect.get(target, prop, receiver);
     },
   });
+}
+
+function isFormControlState(formState: unknown): formState is {value: any; disabled: boolean} {
+  return (
+    typeof formState === 'object' &&
+    formState !== null &&
+    Object.keys(formState).length === 2 &&
+    'value' in formState &&
+    'disabled' in formState
+  );
 }

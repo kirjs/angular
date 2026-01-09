@@ -357,7 +357,16 @@ describe('SignalFormControl', () => {
       form.reset({value: 20, disabled: true});
       expect(form.value).toBe(20);
 
+      expect(form.value).toBe(20);
+
       expect(form.disabled).toBe(false);
+    });
+
+    it('should NOT unbox value in reset if it has extra keys', () => {
+      const form = createSignalFormControl<any>(10);
+      const complexValue = {value: 20, disabled: true, extra: 1};
+      form.reset(complexValue);
+      expect(form.value).toEqual(complexValue);
     });
 
     it('should emit FormResetEvent on reset', () => {

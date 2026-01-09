@@ -236,4 +236,25 @@ describe('SignalFormControl in FormGroup', () => {
     expect(statuses).toContain('INVALID');
     expect(group.status).toBe('INVALID');
   });
+
+  it('should pass sourceControl correctly when signal value changes synchronously', () => {
+    const value = signal(10);
+    const form = createSignalFormControl(value);
+    const group = new FormGroup({
+      n: form,
+    });
+
+    const sourceControls: any[] = [];
+    group.events.subscribe((event: any) => {
+      if (event.source) {
+        sourceControls.push(event.source);
+      }
+    });
+
+    // Change the signal value directly (synchronous update path)
+    form.fieldTree().value.set(20);
+    TestBed.flushEffects();
+
+    expect(sourceControls[0]).toBe(form);
+  });
 });

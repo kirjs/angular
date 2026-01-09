@@ -6,22 +6,22 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import {Injector, WritableSignal, signal} from '@angular/core';
+import {Injector} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
-import {FormControlStatus, FormGroup, ValidationErrors} from '@angular/forms';
+import {FormControlStatus, FormGroup} from '@angular/forms';
 import {SignalFormControlFactory} from '../../../compat/src/signal_form_control/signal_form_control';
 import {required} from '../../../public_api';
 import {SchemaFn} from '../../../src/api/types';
 
-function createSignalFormControl<T>(value: WritableSignal<T>, schema?: SchemaFn<T>) {
+function createSignalFormControl<T>(value: T, schema?: SchemaFn<T>) {
   const injector = TestBed.inject(Injector);
-  return SignalFormControlFactory(value, schema, injector);
+  return SignalFormControlFactory(value, schema, {injector});
 }
 
 describe('SignalFormControl in FormGroup', () => {
   it('should reflect value and value changes', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -37,8 +37,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should propagate patchValue updates from child to parent', () => {
-    const value = signal(5);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(5);
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -55,8 +55,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should reflect validity changes', () => {
-    const value = signal<number | undefined>(10);
-    const form = createSignalFormControl(value, (p) => required(p));
+    const form = createSignalFormControl<number | undefined>(10, (p) => required(p));
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -76,8 +76,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should update signal when parent setValue is called', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -90,8 +90,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should update signal when parent patchValue is called', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -104,8 +104,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should reset child value and state when parent reset is called', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -124,8 +124,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should mark child as touched when parent markAllAsTouched is called', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -139,8 +139,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should mark child as pristine when parent markAsPristine is called', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -156,8 +156,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should mark child as untouched when parent markAsUntouched is called', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -172,8 +172,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should include child value in parent getRawValue', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -185,8 +185,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should support cross-field validators on parent', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
+    const value = form.source;
     const group = new FormGroup(
       {
         n: form,
@@ -209,8 +209,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should allow retrieving child control using get()', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -221,8 +221,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should emit parent statusChanges when child validity changes', () => {
-    const value = signal<number | undefined>(10);
-    const form = createSignalFormControl(value, (p) => required(p));
+    const form = createSignalFormControl<number | undefined>(10, (p) => required(p));
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -238,8 +238,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should pass sourceControl correctly when signal value changes synchronously', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -259,8 +259,8 @@ describe('SignalFormControl in FormGroup', () => {
   });
 
   it('should not notify parent when onlySelf is true', () => {
-    const value = signal(10);
-    const form = createSignalFormControl(value);
+    const form = createSignalFormControl(10);
+    const value = form.source;
     const group = new FormGroup({
       n: form,
     });

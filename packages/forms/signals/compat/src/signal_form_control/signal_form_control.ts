@@ -8,7 +8,9 @@
 
 import {
   EventEmitter,
+  inject,
   Injector,
+  signal,
   WritableSignal,
   effect,
   ɵRuntimeError as RuntimeError,
@@ -29,8 +31,10 @@ import {
 
 import {compatForm} from '../api/compat_form';
 import {signalErrorsToValidationErrors} from '../../../src/api/rules/validation/validation_errors';
+import {FormOptions} from '../../../src/api/structure';
 import {FieldState, FieldTree, SchemaFn} from '../../../src/api/types';
 import {SignalFormsErrorCode} from '../../../src/errors';
+import {normalizeFormArgs} from '../../../src/util/normalize_form_args';
 import {removeListItem} from '../../../../src/util';
 
 export type ValueUpdateOptions = {
@@ -56,16 +60,18 @@ export class SignalFormControl<T> extends AbstractControl {
     dirty: undefined as boolean | undefined,
   };
 
-  constructor(
-    public source: WritableSignal<T>,
-    injector: Injector,
-    schema?: SchemaFn<T>,
-  ) {
+  public source: WritableSignal<T>;
+
+  constructor(value: T, schemaOrOptions?: SchemaFn<T> | FormOptions, options?: FormOptions) {
     super(null, null);
 
+    const [model, schema, opts] = normalizeFormArgs<T>([signal(value), schemaOrOptions, options]);
+    this.source = model;
+    const injector = opts?.injector ?? inject(Injector);
+
     const rawTree = schema
-      ? compatForm(source, schema, {injector})
-      : compatForm(source, {injector});
+      ? compatForm(this.source, schema, {injector})
+      : compatForm(this.source, {injector});
     this.fieldTree = wrapFieldTreeForSyncUpdates(rawTree, () =>
       this.parent?.updateValueAndValidity({sourceControl: this} as any),
     );
@@ -277,8 +283,6 @@ export class SignalFormControl<T> extends AbstractControl {
     return !this.disabled;
   }
 
-  // --- State mutation methods ---
-
   override markAsTouched(opts?: {onlySelf?: boolean}): void {
     this.fieldTree().markAsTouched();
     super.markAsTouched(opts);
@@ -387,11 +391,11 @@ export class SignalFormControl<T> extends AbstractControl {
 }
 
 export function SignalFormControlFactory<T>(
-  source: WritableSignal<T>,
-  schema: SchemaFn<T> | undefined,
-  injector: Injector,
+  value: T,
+  schemaOrOptions?: SchemaFn<T> | FormOptions,
+  options?: FormOptions,
 ): SignalFormControl<T> {
-  return new SignalFormControl(source, injector, schema);
+  return new SignalFormControl(value, schemaOrOptions, options);
 }
 
 /** Wraps FieldTree to trigger synchronous parent notification on field updates. */

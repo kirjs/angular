@@ -17,9 +17,8 @@ import {customError, disabled, required, validateAsync, ValidationError} from '.
 import {SchemaFn} from '../../../src/api/types';
 
 function createSignalFormControl<T>(initialValue: T, schema?: SchemaFn<T>) {
-  const value = signal(initialValue);
   const injector = TestBed.inject(Injector);
-  return SignalFormControlFactory(value, schema, injector);
+  return SignalFormControlFactory(initialValue, schema, {injector});
 }
 
 /**

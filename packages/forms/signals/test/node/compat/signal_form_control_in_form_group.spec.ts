@@ -257,4 +257,23 @@ describe('SignalFormControl in FormGroup', () => {
 
     expect(sourceControls[0]).toBe(form);
   });
+
+  it('should not notify parent when onlySelf is true', () => {
+    const value = signal(10);
+    const form = createSignalFormControl(value);
+    const group = new FormGroup({
+      n: form,
+    });
+
+    const parentEmissions: unknown[] = [];
+    group.valueChanges.subscribe((v) => parentEmissions.push(v));
+
+    form.setValue(20, {onlySelf: true});
+
+    expect(parentEmissions.length).toBe(0);
+    expect(group.value).toEqual({n: 10}); // stale value.
+
+    expect(value()).toBe(20);
+    expect(form.value).toBe(20);
+  });
 });

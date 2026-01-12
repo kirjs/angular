@@ -23,14 +23,13 @@ import {
   PristineChangeEvent,
   StatusChangeEvent,
   TouchedChangeEvent,
-  ValidationErrors,
   ValueChangeEvent,
   FormResetEvent,
   FormControlState,
 } from '@angular/forms';
 
 import {compatForm} from '../api/compat_form';
-import {signalErrorsToValidationErrors} from '../../../src/api/rules/validation/validation_errors';
+import {signalErrorsToValidationErrors} from '../../../src/api/rules';
 import {FormOptions} from '../../../src/api/structure';
 import {FieldState, FieldTree, SchemaFn} from '../../../src/api/types';
 import {SignalFormsErrorCode} from '../../../src/errors';
@@ -44,6 +43,7 @@ export type ValueUpdateOptions = {
   emitViewToModelChange?: boolean;
 };
 
+// TOOD: Add docs
 export class SignalFormControl<T> extends AbstractControl {
   public fieldTree: FieldTree<T>;
   private pendingParentNotifications = 0;
@@ -62,6 +62,7 @@ export class SignalFormControl<T> extends AbstractControl {
 
   public source: WritableSignal<T>;
 
+  // TODO: Add docs
   constructor(value: T, schemaOrOptions?: SchemaFn<T> | FormOptions, options?: FormOptions) {
     super(null, null);
 
@@ -131,7 +132,7 @@ export class SignalFormControl<T> extends AbstractControl {
       () => {
         const touched = this.fieldTree().touched();
         this.emitOnChange('touched', touched, () =>
-          (this as any)._events.next(new TouchedChangeEvent(touched, this)),
+          this._events.next(new TouchedChangeEvent(touched, this)),
         );
       },
       {injector},
@@ -414,8 +415,14 @@ function wrapFieldStateForSyncUpdates<T>(
 ): FieldState<T> {
   const {value} = state;
   const wrappedValue = Object.assign((...args: any[]) => (value as any)(...args), {
-    set: (v: T) => (value.set(v), onUpdate()),
-    update: (fn: (v: T) => T) => (value.update(fn), onUpdate()),
+    set: (v: T) => {
+      value.set(v);
+      onUpdate();
+    },
+    update: (fn: (v: T) => T) => {
+      value.update(fn);
+      onUpdate();
+    },
   }) as WritableSignal<any>;
 
   return new Proxy(state, {

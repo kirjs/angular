@@ -83,7 +83,8 @@ In the template, use standard reactive syntax by binding the underlying control:
 
 ### Integrating a `FormGroup` into a signal form
 
-You can also wrap an entire `FormGroup`. This is common when a reusable sub-section of a form—such as an **Address Block**—is still managed by legacy Reactive Forms.
+You can also wrap an entire `FormGroup`. This is common when a reusable sub-section of a form—such as an **Address Block
+**—is still managed by legacy Reactive Forms.
 
 ```typescript
 import {signal} from '@angular/core';
@@ -208,7 +209,8 @@ const formValue = computed(() => ({
 
 ### Integrating a Signal Form into a `FormGroup`
 
-You can use `SignalFormControl` to expose a signal-based form as a standard `FormControl`. This is useful when you want to migrate leaf nodes of a form to Signals while keeping the parent `FormGroup` structure.
+You can use `SignalFormControl` to expose a signal-based form as a standard `FormControl`. This is useful when you want
+to migrate leaf nodes of a form to Signals while keeping the parent `FormGroup` structure.
 
 ```typescript
 import {Component, inject, Injector, signal} from '@angular/core';
@@ -223,16 +225,13 @@ import {required} from '@angular/forms/signals';
 export class UserProfile {
   private injector = inject(Injector);
 
-  // 1. Create your signal model
-  email = signal('');
-
-  // 2. Wrap it in a SignalFormControl
+  // 1. Create a SignalFormControl, use signal form rules.
   // Note: SignalFormControl requires an Injector
   emailControl = new SignalFormControl(this.email, this.injector, (p) => {
     required(p, {message: 'Email is required'});
   });
 
-  // 3. Use it in a legacy FormGroup
+  // 2. Use it in a legacy FormGroup
   form = new FormGroup({
     email: this.emailControl,
   });
@@ -240,13 +239,68 @@ export class UserProfile {
 ```
 
 The `SignalFormControl` synchronizes values and validation status bi-directionally:
+
 - **Signal -> Control**: Changing `email.set(...)` updates `emailControl.value` and the parent `form.value`.
 - **Control -> Signal**: Typing in the input (updating `emailControl`) updates the `email` signal.
 - **Validation**: Schema validators (like `required`) propagate errors to `emailControl.errors`.
 
+### Disabling/Enabling control.
+
+Imperative APIs for changing the enabled/disabled state (like `enable()`, `disable()`) are intentionally not supported
+in `SignalFormControl`. This is because the state of the control should be derived from the signal state and rules.
+
+Attempting to call disable/enable would throw an error.
+
+```typescript {avoid}
+import {signal, effect} from '@angular/core';
+
+export class UserProfile {
+  readonly emailControl = new SignalFormControl('', this.injector);
+
+  readonly isLoading = signal(false);
+
+  constructor() {
+    // This will throw an error
+    effect(() => {
+      if (this.isLoading()) {
+        this.emailControl.disable();
+      } else {
+        this.emailControl.enable();
+      }
+    });
+  }
+}
+```
+
+Instead, use disabled rule:
+
+```typescript {prefer}
+import {signal} from '@angular/core';
+import {SignalFormControl} from '@angular/forms/signals/compat';
+import {disabled} from '@angular/forms/signals';
+
+export class UserProfile {
+  readonly isLoading = signal(false);
+
+  readonly emailControl = new SignalFormControl('', this.injector, (p) => {
+    // The control becomes disabled whenever isLoading is true
+    disabled(p, () => this.isLoading());
+  });
+
+  async saveData() {
+    this.isLoading.set(true);
+    // ... perform save ...
+    this.isLoading.set(false);
+  }
+}
+```
+
+// TODO: Elaborate on why it does not take signal.
+
 ## Automatic status classes
 
-Reactive/Template Forms automatically adds [class attributes](/guide/forms/template-driven-forms#track-control-states) (such as `.ng-valid` or `.ng-dirty`) to facilitate styling control states. Signal Forms does not do that.
+Reactive/Template Forms automatically adds [class attributes](/guide/forms/template-driven-forms#track-control-states) (
+such as `.ng-valid` or `.ng-dirty`) to facilitate styling control states. Signal Forms does not do that.
 
 If you want to preserve this behavior, you can provide the `NG_STATUS_CLASSES` preset:
 

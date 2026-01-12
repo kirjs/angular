@@ -295,6 +295,53 @@ export class UserProfile {
 }
 ```
 
+### Dynamic manipulation
+
+Imperative APIs for adding or removing validators (like `addValidators()`, `removeValidators()`, `setValidators()`) are intentionally not supported in `SignalFormControl`.
+
+Attempting to call these methods will throw an error.
+
+```typescript {avoid}
+export class UserProfile {
+  readonly emailControl = new SignalFormControl('', this.injector);
+  readonly isRequired = signal(false);
+
+  toggleRequired() {
+    this.isRequired.update((v) => !v);
+    // This will throw an error
+    if (this.isRequired()) {
+      this.emailControl.addValidators(Validators.required);
+    } else {
+      this.emailControl.removeValidators(Validators.required);
+    }
+  }
+}
+```
+
+Instead, use `applyWhen` rule to conditionally apply validators:
+
+```typescript {prefer}
+import {signal} from '@angular/core';
+import {SignalFormControl} from '@angular/forms/signals/compat';
+import {applyWhen, required} from '@angular/forms/signals';
+
+export class UserProfile {
+  readonly isRequired = signal(false);
+
+  readonly emailControl = new SignalFormControl('', this.injector, (p) => {
+    // The control becomes required whenever isRequired is true
+    applyWhen(
+      p,
+      () => this.isRequired(),
+      (p) => {
+        required(p);
+      },
+    );
+  });
+}
+```
+
+// TODO: Set errors doens't work
 // TODO: Elaborate on why it does not take signal.
 
 ## Automatic status classes

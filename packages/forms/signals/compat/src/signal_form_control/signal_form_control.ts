@@ -325,67 +325,54 @@ export class SignalFormControl<T> extends AbstractControl {
 
   // Unsupported methods
   override disable(_opts?: {onlySelf?: boolean; emitEvent?: boolean}): void {
-    throw this.unsupported(
-      'Imperatively changing enabled/disabled status in form control is not supported in signal forms, instead use a disabled (+TODO link) rule',
-    );
+    throw unsupportedDisableEnableError();
   }
 
   override enable(_opts?: {onlySelf?: boolean; emitEvent?: boolean}): void {
-    throw this.unsupported(
-      'Imperatively changing enabled/disabled status in form control is not supported in signal forms, instead use a disabled (+TODO link) rule',
-    );
+    throw unsupportedDisableEnableError();
   }
 
   override setValidators(_validators: any): void {
-    throw this.unsupportedValidators();
+    throw unsupportedValidatorsError();
   }
 
   override setAsyncValidators(_validators: any): void {
-    throw this.unsupportedValidators();
+    throw unsupportedValidatorsError();
   }
 
   override addValidators(_validators: any): void {
-    throw this.unsupportedValidators();
+    throw unsupportedValidatorsError();
   }
 
   override addAsyncValidators(_validators: any): void {
-    throw this.unsupportedValidators();
+    throw unsupportedValidatorsError();
   }
 
   override removeValidators(_validators: any): void {
-    throw this.unsupportedValidators();
+    throw unsupportedValidatorsError();
   }
 
   override removeAsyncValidators(_validators: any): void {
-    throw this.unsupportedValidators();
+    throw unsupportedValidatorsError();
   }
 
   override clearValidators(): void {
-    throw this.unsupportedValidators();
+    throw unsupportedValidatorsError();
   }
 
   override clearAsyncValidators(): void {
-    throw this.unsupportedValidators();
+    throw unsupportedValidatorsError();
   }
 
   override setErrors(_errors: any, _opts?: {emitEvent?: boolean}): void {
-    throw this.unsupported();
-  }
-
-  override markAsPending(_opts?: {onlySelf?: boolean; emitEvent?: boolean}): void {
-    throw this.unsupported();
-  }
-
-  private unsupported(message?: string) {
-    return new RuntimeError(
-      SignalFormsErrorCode.UNSUPPORTED_FEATURE,
-      ngDevMode && (message ?? 'this feature is not supported in SignalFormControl'),
+    throw unsupportedFeatureError(
+      'Imperatively setting errors is not supported in signal forms. Errors are derived from validation rules.',
     );
   }
 
-  private unsupportedValidators() {
-    return this.unsupported(
-      'Dynamically adding and removing validators is not supported in signal forms. Instead use applyWhen (TODO link) rule.',
+  override markAsPending(_opts?: {onlySelf?: boolean; emitEvent?: boolean}): void {
+    throw unsupportedFeatureError(
+      'Imperatively marking as pending is not supported in signal forms. Pending state is derived from async validation status.',
     );
   }
 }
@@ -448,5 +435,21 @@ function isFormControlState(formState: unknown): formState is {value: any; disab
     Object.keys(formState).length === 2 &&
     'value' in formState &&
     'disabled' in formState
+  );
+}
+
+function unsupportedFeatureError(message: string): RuntimeError {
+  return new RuntimeError(SignalFormsErrorCode.UNSUPPORTED_FEATURE as any, ngDevMode && message);
+}
+
+function unsupportedDisableEnableError(): RuntimeError {
+  return unsupportedFeatureError(
+    'Imperatively changing enabled/disabled status in form control is not supported in signal forms. Instead use a "disabled" rule to derive the disabled status from a signal.',
+  );
+}
+
+function unsupportedValidatorsError(): RuntimeError {
+  return unsupportedFeatureError(
+    'Dynamically adding and removing validators is not supported in signal forms. Instead use the "applyWhen" rule to conditionally apply validators based on a signal.',
   );
 }

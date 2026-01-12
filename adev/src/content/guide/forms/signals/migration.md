@@ -227,7 +227,7 @@ export class UserProfile {
 
   // 1. Create a SignalFormControl, use signal form rules.
   // Note: SignalFormControl requires an Injector
-  emailControl = new SignalFormControl(this.email, this.injector, (p) => {
+  emailControl = new SignalFormControl('', this.injector, (p) => {
     required(p, {message: 'Email is required'});
   });
 
@@ -341,8 +341,9 @@ export class UserProfile {
 }
 ```
 
-// TODO: Set errors doens't work
-// TODO: Elaborate on why it does not take signal.
+### Manual Error Selection
+
+The `setErrors()` and `markAsPending()` methods are not supported. In Signal Forms, errors are derived from validation rules and async validation status. If you need to report an error, it should be done declaratively via a validation rule in the schema.
 
 ## Automatic status classes
 

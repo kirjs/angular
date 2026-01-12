@@ -13,7 +13,7 @@ import {
   SignalFormControl,
   SignalFormControlFactory,
 } from '../../../compat/src/signal_form_control/signal_form_control';
-import {customError, disabled, required, validateAsync, ValidationError} from '../../../public_api';
+import {disabled, required, validateAsync, ValidationError} from '../../../public_api';
 import {SchemaFn} from '../../../src/api/types';
 
 function createSignalFormControl<T>(initialValue: T, schema?: SchemaFn<T>) {
@@ -121,7 +121,7 @@ describe('SignalFormControl', () => {
       expect(form.pending).toBe(true);
       expect(form.status).toBe('PENDING');
 
-      resolveNext([customError({kind: 'async-invalid'})]);
+      resolveNext([{kind: 'async-invalid'}]);
       await appRef.whenStable();
       TestBed.flushEffects();
 
@@ -463,14 +463,14 @@ describe('SignalFormControl', () => {
     it('should throw error when calling setErrors()', () => {
       const form = createSignalFormControl(10);
       expect(() => form.setErrors(null)).toThrowError(
-        /this feature is not supported in SignalFormControl/,
+        /Imperatively setting errors is not supported in signal forms/,
       );
     });
 
     it('should throw error when calling markAsPending()', () => {
       const form = createSignalFormControl(10);
       expect(() => form.markAsPending()).toThrowError(
-        /this feature is not supported in SignalFormControl/,
+        /Imperatively marking as pending is not supported in signal forms/,
       );
     });
   });

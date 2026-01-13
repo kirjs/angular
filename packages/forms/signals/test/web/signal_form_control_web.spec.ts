@@ -6,25 +6,26 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import {Component, Injector, inject, provideZonelessChangeDetection, signal} from '@angular/core';
+import {Component, Injector, inject, provideZonelessChangeDetection} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 import {FormControl, FormGroup, ReactiveFormsModule} from '@angular/forms';
-import {Field} from '@angular/forms/signals';
-import {SignalFormControl} from '../../compat/src/signal_form_control/signal_form_control';
+
+import {SignalFormControl} from '../../compat';
+import {FormField} from '../../src/api/form_field_directive';
 
 describe('SignalFormControl (web)', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [provideZonelessChangeDetection()],
-      imports: [ReactiveFormsModule, Field],
+      imports: [ReactiveFormsModule, FormField],
     });
   });
 
-  it('binds to formControl directive', () => {
+  it('binds to formField directive', () => {
     @Component({
       standalone: true,
-      imports: [ReactiveFormsModule, Field],
-      template: `<input [field]="signalControl.fieldTree" />`,
+      imports: [ReactiveFormsModule, FormField],
+      template: `<input [formField]="signalControl.fieldTree" />`,
     })
     class TestCmp {
       readonly signalControl = new SignalFormControl('initial', undefined, {
@@ -36,12 +37,10 @@ describe('SignalFormControl (web)', () => {
     const fixture = act(() => TestBed.createComponent(TestCmp));
     const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
 
-    // Model -> View
     expect(input.value).toBe('initial');
     act(() => fixture.componentInstance.control.setValue('changed'));
     expect(input.value).toBe('changed');
 
-    // View -> Model
     act(() => {
       input.value = 'view';
       input.dispatchEvent(new Event('input'));
@@ -52,11 +51,11 @@ describe('SignalFormControl (web)', () => {
   it('binds inside nested FormGroup via formGroupName', () => {
     @Component({
       standalone: true,
-      imports: [ReactiveFormsModule, Field],
+      imports: [ReactiveFormsModule, FormField],
       template: `
         <div [formGroup]="group">
           <div formGroupName="inner">
-            <input [field]="signalControl.fieldTree" />
+            <input [formField]="signalControl.fieldTree" />
           </div>
         </div>
       `,

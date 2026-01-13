@@ -8,7 +8,7 @@
 
 import {Injector} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
-import {FormControlStatus, FormGroup} from '@angular/forms';
+import {FormArray, FormControlStatus, FormGroup} from '@angular/forms';
 import {SignalFormControl} from '../../../compat/src/signal_form_control/signal_form_control';
 import {required} from '../../../public_api';
 import {SchemaFn} from '../../../src/api/types';
@@ -18,21 +18,16 @@ function createSignalFormControl<T>(value: T, schema?: SchemaFn<T>) {
   return new SignalFormControl(value, schema, {injector});
 }
 
+// TODO: Organize this test better
 describe('SignalFormControl in FormGroup', () => {
   it('should reflect value and value changes', () => {
     const form = createSignalFormControl(10);
-    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
 
     expect(group.value).toEqual({n: 10});
-
-    const emissions: any[] = [];
-    group.valueChanges.subscribe((v) => emissions.push(v));
-
     form.setValue(20);
-
     expect(group.value).toEqual({n: 20});
   });
 
@@ -52,11 +47,17 @@ describe('SignalFormControl in FormGroup', () => {
     expect(emissions).toEqual([{n: 15}]);
     expect(form.value).toBe(15);
     expect(value()).toBe(15);
+
+    form.patchValue(25);
+
+    expect(group.value).toEqual({n: 25});
+    expect(emissions).toEqual([{n: 15}, {n: 25}]);
+    expect(form.value).toBe(25);
+    expect(value()).toBe(25);
   });
 
   it('should reflect validity changes', () => {
     const form = createSignalFormControl<number | undefined>(10, (p) => required(p));
-    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -83,7 +84,6 @@ describe('SignalFormControl in FormGroup', () => {
     });
 
     group.setValue({n: 20});
-    TestBed.flushEffects();
 
     expect(value()).toBe(20);
     expect(form.value).toBe(20);
@@ -97,50 +97,43 @@ describe('SignalFormControl in FormGroup', () => {
     });
 
     group.patchValue({n: 30});
-    TestBed.flushEffects();
 
     expect(value()).toBe(30);
     expect(form.value).toBe(30);
   });
 
   it('should reset child value and state when parent reset is called', () => {
-    const form = createSignalFormControl(10);
-    const value = form.source;
+    const child = createSignalFormControl(10);
+    const value = child.source;
     const group = new FormGroup({
-      n: form,
+      n: child,
     });
 
-    form.markAsDirty();
-    form.markAsTouched();
-    expect(form.dirty).toBe(true);
-    expect(form.touched).toBe(true);
+    child.markAsDirty();
+    child.markAsTouched();
+    expect(child.dirty).toBe(true);
+    expect(child.touched).toBe(true);
 
     group.reset({n: 50});
-    TestBed.flushEffects();
 
     expect(value()).toBe(50);
-    expect(form.dirty).toBe(false);
-    expect(form.touched).toBe(false);
+    expect(child.dirty).toBe(false);
+    expect(child.touched).toBe(false);
   });
 
   it('should mark child as touched when parent markAllAsTouched is called', () => {
     const form = createSignalFormControl(10);
-    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
 
     expect(form.touched).toBe(false);
-
     group.markAllAsTouched();
-    TestBed.flushEffects();
-
     expect(form.touched).toBe(true);
   });
 
   it('should mark child as pristine when parent markAsPristine is called', () => {
     const form = createSignalFormControl(10);
-    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -149,7 +142,6 @@ describe('SignalFormControl in FormGroup', () => {
     expect(form.dirty).toBe(true);
 
     group.markAsPristine();
-    TestBed.flushEffects();
 
     expect(form.dirty).toBe(false);
     expect(form.pristine).toBe(true);
@@ -157,7 +149,6 @@ describe('SignalFormControl in FormGroup', () => {
 
   it('should mark child as untouched when parent markAsUntouched is called', () => {
     const form = createSignalFormControl(10);
-    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -166,14 +157,12 @@ describe('SignalFormControl in FormGroup', () => {
     expect(form.touched).toBe(true);
 
     group.markAsUntouched();
-    TestBed.flushEffects();
 
     expect(form.touched).toBe(false);
   });
 
   it('should include child value in parent getRawValue', () => {
     const form = createSignalFormControl(10);
-    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -186,7 +175,6 @@ describe('SignalFormControl in FormGroup', () => {
 
   it('should support cross-field validators on parent', () => {
     const form = createSignalFormControl(10);
-    const value = form.source;
     const group = new FormGroup(
       {
         n: form,
@@ -202,7 +190,6 @@ describe('SignalFormControl in FormGroup', () => {
     expect(group.valid).toBe(true);
 
     form.setValue(1);
-    TestBed.flushEffects();
 
     expect(group.valid).toBe(false);
     expect(group.errors).toEqual({min: true});
@@ -210,7 +197,6 @@ describe('SignalFormControl in FormGroup', () => {
 
   it('should allow retrieving child control using get()', () => {
     const form = createSignalFormControl(10);
-    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -222,7 +208,6 @@ describe('SignalFormControl in FormGroup', () => {
 
   it('should emit parent statusChanges when child validity changes', () => {
     const form = createSignalFormControl<number | undefined>(10, (p) => required(p));
-    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -231,7 +216,6 @@ describe('SignalFormControl in FormGroup', () => {
     group.statusChanges.subscribe((s) => statuses.push(s));
 
     form.setValue(undefined);
-    TestBed.flushEffects();
 
     expect(statuses).toContain('INVALID');
     expect(group.status).toBe('INVALID');
@@ -239,7 +223,6 @@ describe('SignalFormControl in FormGroup', () => {
 
   it('should pass sourceControl correctly when signal value changes synchronously', () => {
     const form = createSignalFormControl(10);
-    const value = form.source;
     const group = new FormGroup({
       n: form,
     });
@@ -251,10 +234,7 @@ describe('SignalFormControl in FormGroup', () => {
       }
     });
 
-    // Change the signal value directly (synchronous update path)
     form.fieldTree().value.set(20);
-    TestBed.flushEffects();
-
     expect(sourceControls[0]).toBe(form);
   });
 
@@ -271,9 +251,65 @@ describe('SignalFormControl in FormGroup', () => {
     form.setValue(20, {onlySelf: true});
 
     expect(parentEmissions.length).toBe(0);
-    expect(group.value).toEqual({n: 10}); // stale value.
+    expect(group.value).toEqual({n: 10});
 
     expect(value()).toBe(20);
     expect(form.value).toBe(20);
+  });
+
+  describe('integration with parent', () => {
+    it('should synchronize value with parent FormGroup immediately', () => {
+      const child = createSignalFormControl('meow');
+      const group = new FormGroup({
+        child: child,
+      });
+
+      child.fieldTree().value.set('wuf');
+      expect(group.value).toEqual({child: 'wuf'});
+    });
+
+    it('should synchronize nested value with parent FormGroup immediately', () => {
+      const child = createSignalFormControl({name: 'pirojok', says: 'meow'});
+      const group = new FormGroup({
+        child: child,
+      });
+
+      child.fieldTree.says().value.set('wuf');
+      expect(group.value).toEqual({child: {name: 'pirojok', says: 'wuf'}});
+    });
+
+    it('should propagate validity to parent FormGroup immediately', () => {
+      const child = createSignalFormControl<string>('meow-meow', (p) => required(p));
+      const group = new FormGroup({
+        child: child,
+      });
+
+      expect(group.valid).withContext('Valid initially').toBe(true);
+      child.fieldTree().value.set('');
+      expect(group.valid).withContext('Invalid immediately on value change').toBe(false);
+      group.controls.child.setValue('meow');
+      expect(group.valid).withContext('Valid initially').toBe(true);
+    });
+
+    describe('FormArray', () => {
+      it('should synchronize value with parent FormArray immediately', () => {
+        const child = createSignalFormControl('meow');
+        const array = new FormArray([child]);
+
+        child.fieldTree().value.set('wuf');
+        expect(array.value).toEqual(['wuf']);
+      });
+
+      it('should propagate validity to parent FormArray immediately', () => {
+        const child = createSignalFormControl<string>('valid', (p) => required(p));
+        const array = new FormArray([child]);
+
+        expect(array.valid).withContext('Valid initially').toBe(true);
+        child.fieldTree().value.set('');
+        expect(array.valid).withContext('Invalid immediately on value change').toBe(false);
+        array.at(0).setValue('meow');
+        expect(array.valid).withContext('Valid initially').toBe(true);
+      });
+    });
   });
 });

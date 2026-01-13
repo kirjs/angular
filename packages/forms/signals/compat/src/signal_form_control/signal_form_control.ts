@@ -36,6 +36,7 @@ import {SignalFormsErrorCode} from '../../../src/errors';
 import {normalizeFormArgs} from '../../../src/util/normalize_form_args';
 import {removeListItem} from '../../../../src/util';
 
+/** Options used to update the control value. */
 export type ValueUpdateOptions = {
   onlySelf?: boolean;
   emitEvent?: boolean;
@@ -43,9 +44,20 @@ export type ValueUpdateOptions = {
   emitViewToModelChange?: boolean;
 };
 
-// TOOD: Add docs
+/**
+ * A `FormControl` that is backed by signal forms rules.
+ *
+ * This class provides a bridge between Signal Forms and Reactive Forms, allowing
+ * signal-based controls to be used within a standard `FormGroup` or `FormArray`.
+ *
+ * @experimental
+ */
 export class SignalFormControl<T> extends AbstractControl {
+  /** Source FieldTree. */
   public fieldTree: FieldTree<T>;
+  /** The raw signal driving the control value. */
+  public source: WritableSignal<T>;
+
   private pendingParentNotifications = 0;
   private readonly onChangeCallbacks: Array<(value?: any, emitModelEvent?: boolean) => void> = [];
   private readonly onDisabledChangeCallbacks: Array<(isDisabled: boolean) => void> = [];
@@ -60,9 +72,11 @@ export class SignalFormControl<T> extends AbstractControl {
     dirty: undefined as boolean | undefined,
   };
 
-  public source: WritableSignal<T>;
-
-  // TODO: Add docs
+  /**
+   * @param value The initial value for the control.
+   * @param schemaOrOptions The schema for the control, or the control options.
+   * @param options The control options.
+   */
   constructor(value: T, schemaOrOptions?: SchemaFn<T> | FormOptions, options?: FormOptions) {
     super(null, null);
 
@@ -132,7 +146,7 @@ export class SignalFormControl<T> extends AbstractControl {
       () => {
         const touched = this.fieldTree().touched();
         this.emitOnChange('touched', touched, () =>
-          this._events.next(new TouchedChangeEvent(touched, this)),
+          (this as any)._events.next(new TouchedChangeEvent(touched, this)),
         );
       },
       {injector},
@@ -378,6 +392,10 @@ export class SignalFormControl<T> extends AbstractControl {
   }
 }
 
+/**
+ * Factory function to create a `SignalFormControl`.
+ * @experimental
+ */
 export function SignalFormControlFactory<T>(
   value: T,
   schemaOrOptions?: SchemaFn<T> | FormOptions,

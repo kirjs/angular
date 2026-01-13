@@ -6,15 +6,23 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import {ApplicationRef, Injector, resource} from '@angular/core';
+import {ApplicationRef, computed, Injector, resource} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
-import {FormControlStatus, FormGroup} from '@angular/forms';
+import {FormArray, FormControlStatus, FormGroup} from '@angular/forms';
+import {
+  disabled,
+  max,
+  min,
+  required,
+  validate,
+  validateAsync,
+  ValidationError,
+} from '@angular/forms/signals';
+import {SchemaFn} from '../../../src/api/types';
 import {
   SignalFormControl,
   SignalFormControlFactory,
 } from '../../../compat/src/signal_form_control/signal_form_control';
-import {disabled, required, validateAsync, ValidationError} from '../../../public_api';
-import {SchemaFn} from '../../../src/api/types';
 
 function createSignalFormControl<T>(initialValue: T, schema?: SchemaFn<T>) {
   const injector = TestBed.inject(Injector);
@@ -320,6 +328,27 @@ describe('SignalFormControl', () => {
       expect(group.valid).withContext('Invalid immediately on value change').toBe(false);
       group.controls.child.setValue('meow');
       expect(group.valid).withContext('Valid initially').toBe(true);
+    });
+
+    describe('FormArray', () => {
+      it('should synchronize value with parent FormArray immediately', () => {
+        const child = createSignalFormControl('meow');
+        const array = new FormArray([child]);
+
+        child.fieldTree().value.set('wuf');
+        expect(array.value).toEqual(['wuf']);
+      });
+
+      it('should propagate validity to parent FormArray immediately', () => {
+        const child = createSignalFormControl<string>('valid', (p) => required(p));
+        const array = new FormArray([child]);
+
+        expect(array.valid).withContext('Valid initially').toBe(true);
+        child.fieldTree().value.set('');
+        expect(array.valid).withContext('Invalid immediately on value change').toBe(false);
+        array.at(0).setValue('meow');
+        expect(array.valid).withContext('Valid initially').toBe(true);
+      });
     });
   });
 

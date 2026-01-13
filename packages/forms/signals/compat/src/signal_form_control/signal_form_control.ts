@@ -14,7 +14,6 @@ import {
   WritableSignal,
   effect,
   ɵRuntimeError as RuntimeError,
-  isSignal,
 } from '@angular/core';
 import {
   AbstractControl,
@@ -78,15 +77,10 @@ export class SignalFormControl<T> extends AbstractControl {
    * @param schemaOrOptions The schema for the control, or the control options.
    * @param options The control options.
    */
-  constructor(
-    value: T | WritableSignal<T>,
-    schemaOrOptions?: SchemaFn<T> | FormOptions,
-    options?: FormOptions,
-  ) {
+  constructor(value: T, schemaOrOptions?: SchemaFn<T> | FormOptions, options?: FormOptions) {
     super(null, null);
 
-    const source = isSignal(value) ? value : signal(value);
-    const [model, schema, opts] = normalizeFormArgs<T>([source, schemaOrOptions, options]);
+    const [model, schema, opts] = normalizeFormArgs<T>([signal(value), schemaOrOptions, options]);
     this.source = model;
     const injector = opts?.injector ?? inject(Injector);
 

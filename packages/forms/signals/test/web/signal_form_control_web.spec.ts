@@ -26,10 +26,10 @@ describe('SignalFormControl (web)', () => {
       template: `<input [formControl]="control" />`,
     })
     class TestCmp {
-      readonly model = signal('initial');
-      readonly control = new SignalFormControl(this.model, undefined, {
+      readonly signalControl = new SignalFormControl('initial', undefined, {
         injector: inject(Injector),
-      }) as unknown as FormControl;
+      });
+      readonly control = this.signalControl;
     }
 
     const fixture = act(() => TestBed.createComponent(TestCmp));
@@ -45,7 +45,7 @@ describe('SignalFormControl (web)', () => {
       input.value = 'view';
       input.dispatchEvent(new Event('input'));
     });
-    expect(fixture.componentInstance.model()).toBe('view');
+    expect(fixture.componentInstance.signalControl.source()).toBe('view');
   });
 
   it('binds inside nested FormGroup via formGroupName', () => {
@@ -62,10 +62,10 @@ describe('SignalFormControl (web)', () => {
     })
     class TestCmp {
       private readonly injector = inject(Injector);
-      readonly model = signal('start');
-      readonly control = new SignalFormControl(this.model, undefined, {
+      readonly signalControl = new SignalFormControl('start', undefined, {
         injector: this.injector,
-      }) as unknown as FormControl;
+      });
+      readonly control = this.signalControl as unknown as FormControl;
       readonly form = new FormGroup({
         user: new FormGroup({
           name: this.control,
@@ -90,7 +90,7 @@ describe('SignalFormControl (web)', () => {
       input.value = 'typed';
       input.dispatchEvent(new Event('input'));
     });
-    expect(fixture.componentInstance.model()).toBe('typed');
+    expect(fixture.componentInstance.signalControl.source()).toBe('typed');
     expect(form.value).toEqual({user: {name: 'typed'}});
     expect(control.dirty).toBeTrue();
     expect(form.dirty).toBeTrue();
@@ -106,7 +106,7 @@ describe('SignalFormControl (web)', () => {
     act(() => form.patchValue({user: {name: 'group-form'}}));
     expect(input.value).toBe('group-form');
     expect(control.value).toBe('group-form');
-    expect(fixture.componentInstance.model()).toBe('group-form');
+    expect(fixture.componentInstance.signalControl.source()).toBe('group-form');
   });
 });
 

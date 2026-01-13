@@ -29,7 +29,7 @@ describe('SignalFormControl (web)', () => {
       readonly signalControl = new SignalFormControl('initial', undefined, {
         injector: inject(Injector),
       });
-      readonly control = this.signalControl;
+      readonly control = this.signalControl as unknown as FormControl;
     }
 
     const fixture = act(() => TestBed.createComponent(TestCmp));

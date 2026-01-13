@@ -17,6 +17,7 @@ import {
 } from '@angular/core';
 import {
   AbstractControl,
+  ControlEvent,
   FormArray,
   FormControlStatus,
   FormGroup,
@@ -121,7 +122,7 @@ export class SignalFormControl<T> extends AbstractControl {
           this.parent?.updateValueAndValidity({sourceControl: this} as any);
         }
         this.valueChanges.emit(value);
-        (this as any)._events.next(new ValueChangeEvent(value, this));
+        this.emitControlEvent(new ValueChangeEvent(value, this));
       },
       {injector},
     );
@@ -132,7 +133,7 @@ export class SignalFormControl<T> extends AbstractControl {
         const status = this.status;
         this.statusChanges.emit(status);
         this.emitOnChange('status', status, () =>
-          (this as any)._events.next(new StatusChangeEvent(status, this)),
+          this.emitControlEvent(new StatusChangeEvent(status, this)),
         );
         this.emitOnChange('disabled', this.disabled, (isDisabled) =>
           this.onDisabledChangeCallbacks.forEach((fn) => fn(isDisabled)),
@@ -146,7 +147,7 @@ export class SignalFormControl<T> extends AbstractControl {
       () => {
         const touched = this.fieldTree().touched();
         this.emitOnChange('touched', touched, () =>
-          (this as any)._events.next(new TouchedChangeEvent(touched, this)),
+          this.emitControlEvent(new TouchedChangeEvent(touched, this)),
         );
       },
       {injector},
@@ -157,7 +158,7 @@ export class SignalFormControl<T> extends AbstractControl {
       () => {
         const dirty = this.fieldTree().dirty();
         this.emitOnChange('dirty', dirty, () =>
-          (this as any)._events.next(new PristineChangeEvent(!dirty, this)),
+          this.emitControlEvent(new PristineChangeEvent(!dirty, this)),
         );
       },
       {injector},
@@ -222,7 +223,7 @@ export class SignalFormControl<T> extends AbstractControl {
     }
 
     if (options?.emitEvent !== false) {
-      (this as any)._events.next(new FormResetEvent(this));
+      this.emitControlEvent(new FormResetEvent(this));
     }
   }
 
@@ -389,6 +390,10 @@ export class SignalFormControl<T> extends AbstractControl {
     throw unsupportedFeatureError(
       'Imperatively marking as pending is not supported in signal forms. Pending state is derived from async validation status.',
     );
+  }
+
+  private emitControlEvent(event: ControlEvent): void {
+    (this as any)._events.next(event);
   }
 }
 

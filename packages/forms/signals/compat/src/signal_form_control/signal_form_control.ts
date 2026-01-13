@@ -146,9 +146,14 @@ export class SignalFormControl<T> extends AbstractControl {
     effect(
       () => {
         const touched = this.fieldTree().touched();
-        this.emitOnChange('touched', touched, () =>
-          this.emitControlEvent(new TouchedChangeEvent(touched, this)),
-        );
+        this.emitOnChange('touched', touched, (isTouched) => {
+          this.emitControlEvent(new TouchedChangeEvent(isTouched, this));
+          if (isTouched) {
+            this.parent?.markAsTouched();
+          } else {
+            this.parent?.markAsUntouched();
+          }
+        });
       },
       {injector},
     );
@@ -157,9 +162,14 @@ export class SignalFormControl<T> extends AbstractControl {
     effect(
       () => {
         const dirty = this.fieldTree().dirty();
-        this.emitOnChange('dirty', dirty, () =>
-          this.emitControlEvent(new PristineChangeEvent(!dirty, this)),
-        );
+        this.emitOnChange('dirty', dirty, (isDirty) => {
+          this.emitControlEvent(new PristineChangeEvent(!isDirty, this));
+          if (isDirty) {
+            this.parent?.markAsDirty();
+          } else {
+            this.parent?.markAsPristine();
+          }
+        });
       },
       {injector},
     );
@@ -273,11 +283,23 @@ export class SignalFormControl<T> extends AbstractControl {
 
   override set dirty(_: boolean) {} // No-op: state is derived from signal
 
+  override get pristine(): boolean {
+    return !this.dirty;
+  }
+
+  override set pristine(_: boolean) {} // No-op: state is derived from signal
+
   override get touched(): boolean {
     return this.fieldTree().touched();
   }
 
   override set touched(_: boolean) {} // No-op: state is derived from signal
+
+  override get untouched(): boolean {
+    return !this.touched;
+  }
+
+  override set untouched(_: boolean) {} // No-op: state is derived from signal
 
   override get valid(): boolean {
     return this.fieldTree().valid();
@@ -301,22 +323,30 @@ export class SignalFormControl<T> extends AbstractControl {
 
   override markAsTouched(opts?: {onlySelf?: boolean}): void {
     this.fieldTree().markAsTouched();
-    super.markAsTouched(opts);
+    if (this.parent && !opts?.onlySelf) {
+      this.parent.markAsTouched(opts);
+    }
   }
 
   override markAsDirty(opts?: {onlySelf?: boolean}): void {
     this.fieldTree().markAsDirty();
-    super.markAsDirty(opts);
+    if (this.parent && !opts?.onlySelf) {
+      this.parent.markAsDirty(opts);
+    }
   }
 
   override markAsPristine(opts?: {onlySelf?: boolean}): void {
     this.fieldTree().reset(this.source() as any); // reset() clears pristine internally
-    super.markAsPristine(opts);
+    if (this.parent && !opts?.onlySelf) {
+      this.parent.markAsPristine(opts);
+    }
   }
 
   override markAsUntouched(opts?: {onlySelf?: boolean}): void {
     this.fieldTree().reset(this.source() as any); // reset() clears touched internally
-    super.markAsUntouched(opts);
+    if (this.parent && !opts?.onlySelf) {
+      this.parent.markAsUntouched(opts);
+    }
   }
 
   override updateValueAndValidity(_opts?: Object): void {} // No-op: validity is derived from signal

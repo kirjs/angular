@@ -14,6 +14,7 @@ import {
   WritableSignal,
   effect,
   ɵRuntimeError as RuntimeError,
+  isSignal,
 } from '@angular/core';
 import {
   AbstractControl,
@@ -77,10 +78,15 @@ export class SignalFormControl<T> extends AbstractControl {
    * @param schemaOrOptions The schema for the control, or the control options.
    * @param options The control options.
    */
-  constructor(value: T, schemaOrOptions?: SchemaFn<T> | FormOptions, options?: FormOptions) {
+  constructor(
+    value: T | WritableSignal<T>,
+    schemaOrOptions?: SchemaFn<T> | FormOptions,
+    options?: FormOptions,
+  ) {
     super(null, null);
 
-    const [model, schema, opts] = normalizeFormArgs<T>([signal(value), schemaOrOptions, options]);
+    const source = isSignal(value) ? value : signal(value);
+    const [model, schema, opts] = normalizeFormArgs<T>([source, schemaOrOptions, options]);
     this.source = model;
     const injector = opts?.injector ?? inject(Injector);
 
@@ -390,18 +396,6 @@ export class SignalFormControl<T> extends AbstractControl {
       'Imperatively marking as pending is not supported in signal forms. Pending state is derived from async validation status.',
     );
   }
-}
-
-/**
- * Factory function to create a `SignalFormControl`.
- * @experimental
- */
-export function SignalFormControlFactory<T>(
-  value: T,
-  schemaOrOptions?: SchemaFn<T> | FormOptions,
-  options?: FormOptions,
-): SignalFormControl<T> {
-  return new SignalFormControl(value, schemaOrOptions, options);
 }
 
 /** Wraps FieldTree to trigger synchronous parent notification on field updates. */

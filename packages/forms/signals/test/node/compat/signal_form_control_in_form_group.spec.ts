@@ -9,13 +9,13 @@
 import {Injector} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 import {FormControlStatus, FormGroup} from '@angular/forms';
-import {SignalFormControlFactory} from '../../../compat/src/signal_form_control/signal_form_control';
+import {SignalFormControl} from '../../../compat/src/signal_form_control/signal_form_control';
 import {required} from '../../../public_api';
 import {SchemaFn} from '../../../src/api/types';
 
 function createSignalFormControl<T>(value: T, schema?: SchemaFn<T>) {
   const injector = TestBed.inject(Injector);
-  return SignalFormControlFactory(value, schema, {injector});
+  return new SignalFormControl(value, schema, {injector});
 }
 
 describe('SignalFormControl in FormGroup', () => {

@@ -8,7 +8,7 @@
 
 import {ApplicationRef, computed, Injector, resource} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
-import {FormArray, FormControlStatus, FormGroup} from '@angular/forms';
+import {ControlEvent, FormArray, FormControlStatus, FormGroup} from '@angular/forms';
 import {
   disabled,
   max,
@@ -19,14 +19,11 @@ import {
   ValidationError,
 } from '@angular/forms/signals';
 import {SchemaFn} from '../../../src/api/types';
-import {
-  SignalFormControl,
-  SignalFormControlFactory,
-} from '../../../compat/src/signal_form_control/signal_form_control';
+import {SignalFormControl} from '../../../compat/src/signal_form_control/signal_form_control';
 
 function createSignalFormControl<T>(initialValue: T, schema?: SchemaFn<T>) {
   const injector = TestBed.inject(Injector);
-  return SignalFormControlFactory(initialValue, schema, {injector});
+  return new SignalFormControl(initialValue, schema, {injector});
 }
 
 /**
@@ -198,7 +195,7 @@ describe('SignalFormControl', () => {
       const form = createSignalFormControl(10);
       const emissions: number[] = [];
 
-      form.valueChanges.subscribe((v) => emissions.push(v));
+      form.valueChanges.subscribe((v: number) => emissions.push(v));
 
       form.setValue(20);
       TestBed.flushEffects();
@@ -215,7 +212,7 @@ describe('SignalFormControl', () => {
       });
       const statuses: FormControlStatus[] = [];
 
-      form.statusChanges.subscribe((status) => statuses.push(status));
+      form.statusChanges.subscribe((status: FormControlStatus) => statuses.push(status));
 
       form.setValue(1);
       TestBed.flushEffects();
@@ -234,7 +231,7 @@ describe('SignalFormControl', () => {
       const form = createSignalFormControl(10);
       const events: any[] = [];
 
-      form.events.subscribe((e) => events.push(e));
+      form.events.subscribe((e: ControlEvent<number>) => events.push(e));
 
       form.setValue(20);
       TestBed.flushEffects();
@@ -251,7 +248,7 @@ describe('SignalFormControl', () => {
       TestBed.flushEffects();
 
       const events: any[] = [];
-      form.events.subscribe((e) => events.push(e));
+      form.events.subscribe((e: ControlEvent<number | undefined>) => events.push(e));
 
       form.setValue(undefined);
       TestBed.flushEffects();
@@ -268,7 +265,7 @@ describe('SignalFormControl', () => {
       TestBed.flushEffects();
 
       const events: any[] = [];
-      form.events.subscribe((e) => events.push(e));
+      form.events.subscribe((e: ControlEvent<number>) => events.push(e));
 
       form.markAsTouched();
       TestBed.flushEffects();
@@ -285,7 +282,7 @@ describe('SignalFormControl', () => {
       TestBed.flushEffects();
 
       const events: any[] = [];
-      form.events.subscribe((e) => events.push(e));
+      form.events.subscribe((e: ControlEvent<number>) => events.push(e));
 
       form.markAsDirty();
       TestBed.flushEffects();
@@ -400,7 +397,7 @@ describe('SignalFormControl', () => {
     it('should emit FormResetEvent on reset', () => {
       const form = createSignalFormControl(10);
       const events: any[] = [];
-      form.events.subscribe((e) => events.push(e));
+      form.events.subscribe((e: ControlEvent<number>) => events.push(e));
 
       form.reset(20);
       const resetEvents = events.filter((e) => e.constructor.name === 'FormResetEvent');
@@ -410,7 +407,7 @@ describe('SignalFormControl', () => {
     it('should NOT emit FormResetEvent on reset when emitEvent is false', () => {
       const form = createSignalFormControl(10);
       const events: any[] = [];
-      form.events.subscribe((e) => events.push(e));
+      form.events.subscribe((e: ControlEvent<number>) => events.push(e));
 
       form.reset(20, {emitEvent: false});
       const resetEvents = events.filter((e) => e.constructor.name === 'FormResetEvent');

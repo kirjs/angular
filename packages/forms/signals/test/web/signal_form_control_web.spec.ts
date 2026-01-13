@@ -9,7 +9,7 @@
 import {Component, Injector, inject, provideZonelessChangeDetection, signal} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 import {FormControl, FormGroup, ReactiveFormsModule} from '@angular/forms';
-import {SignalFormControlFactory} from '../../compat/src/signal_form_control/signal_form_control';
+import {SignalFormControl} from '../../compat/src/signal_form_control/signal_form_control';
 
 describe('SignalFormControl (web)', () => {
   beforeEach(() => {
@@ -27,11 +27,9 @@ describe('SignalFormControl (web)', () => {
     })
     class TestCmp {
       readonly model = signal('initial');
-      readonly control = SignalFormControlFactory(
-        this.model,
-        undefined,
-        inject(Injector),
-      ) as unknown as FormControl;
+      readonly control = new SignalFormControl(this.model, undefined, {
+        injector: inject(Injector),
+      }) as unknown as FormControl;
     }
 
     const fixture = act(() => TestBed.createComponent(TestCmp));
@@ -65,11 +63,9 @@ describe('SignalFormControl (web)', () => {
     class TestCmp {
       private readonly injector = inject(Injector);
       readonly model = signal('start');
-      readonly control = SignalFormControlFactory(
-        this.model,
-        undefined,
-        this.injector,
-      ) as unknown as FormControl;
+      readonly control = new SignalFormControl(this.model, undefined, {
+        injector: this.injector,
+      }) as unknown as FormControl;
       readonly form = new FormGroup({
         user: new FormGroup({
           name: this.control,

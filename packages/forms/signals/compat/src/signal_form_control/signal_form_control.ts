@@ -87,23 +87,25 @@ export class SignalFormControl<T> extends AbstractControl {
     );
     this.fieldState = this.fieldTree();
 
-    // Define value and errors as getters (Object.defineProperty is needed because
-    // AbstractControl declares them as properties, and TypeScript doesn't allow
-    // overriding a property with a getter).
+    this.defineValueAndErrorsGetters();
+    this.setupEffects(injector);
+  }
+
+  /**
+   * AbstractControl declares getters as properties, and TypeScript doesn't allow
+   * overriding a property with a getter, so we have to do it.
+   */
+  private defineValueAndErrorsGetters(): void {
     Object.defineProperty(this, 'value', {
       get: () => this.source(),
       enumerable: true,
       configurable: true,
     });
     Object.defineProperty(this, 'errors', {
-      get: () => {
-        return signalErrorsToValidationErrors(this.fieldState.errors());
-      },
+      get: () => signalErrorsToValidationErrors(this.fieldState.errors()),
       enumerable: true,
       configurable: true,
     });
-
-    this.setupEffects(injector);
   }
 
   private setupEffects(injector: Injector): void {

@@ -463,4 +463,24 @@ describe('SignalFormControl', () => {
       );
     });
   });
+
+  describe('callback registration', () => {
+    it('should call registered onDisabledChange callback when disabled state changes', () => {
+      const form = createSignalFormControl(10, (p) => {
+        disabled(p, ({value}) => value() > 15);
+      });
+      const callback = jasmine.createSpy('onDisabledChange');
+
+      form.registerOnDisabledChange(callback);
+      TestBed.inject(ApplicationRef).tick();
+
+      expect(callback).toHaveBeenCalledWith(false);
+      callback.calls.reset();
+
+      form.setValue(20);
+      TestBed.inject(ApplicationRef).tick();
+
+      expect(callback).toHaveBeenCalledWith(true);
+    });
+  });
 });

@@ -6,9 +6,10 @@
  * found in the LICENSE file at https://angular.dev/license
  */
 
-import {Component, Injector, inject, provideZonelessChangeDetection} from '@angular/core';
+import {Component, Injector, inject, provideZonelessChangeDetection, signal} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 import {FormControl, FormGroup, ReactiveFormsModule} from '@angular/forms';
+import {disabled} from '@angular/forms/signals';
 
 import {SignalFormControl} from '../../compat';
 import {FormField} from '../../src/api/form_field_directive';
@@ -85,6 +86,41 @@ describe('SignalFormControl (web)', () => {
 
     expect(fixture.componentInstance.signalControl.source()).toBe('updated');
     expect(fixture.componentInstance.group.dirty).toBe(true);
+  });
+
+  it('should unregister disabled callback when directive is destroyed', () => {
+    @Component({
+      standalone: true,
+      imports: [ReactiveFormsModule],
+      template: `
+        @if (showInput()) {
+          <input [formControl]="control" />
+        }
+      `,
+    })
+    class TestCmp {
+      readonly showInput = signal(true);
+      readonly signalControl = new SignalFormControl(
+        10,
+        (p) => {
+          disabled(p, ({value}) => value() > 15);
+        },
+        {injector: inject(Injector)},
+      );
+      readonly control = this.signalControl as unknown as FormControl;
+    }
+
+    const fixture = act(() => TestBed.createComponent(TestCmp));
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    expect(input).toBeTruthy();
+    expect(input.disabled).toBe(false);
+
+    act(() => fixture.componentInstance.showInput.set(false));
+    expect(fixture.nativeElement.querySelector('input')).toBeNull();
+
+    expect(() => {
+      act(() => fixture.componentInstance.control.setValue(20));
+    }).not.toThrow();
   });
 });
 

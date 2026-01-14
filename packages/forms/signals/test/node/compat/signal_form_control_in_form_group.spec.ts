@@ -278,6 +278,32 @@ describe('SignalFormControl in FormGroup', () => {
       expect(group.value).toEqual({child: {name: 'pirojok', says: 'wuf'}});
     });
 
+    it('should synchronize multiple value sets with parent FormGroup immediately', () => {
+      const child = createSignalFormControl({name: 'a', count: 0});
+      const group = new FormGroup({child});
+
+      child.fieldTree.name().value.set('b');
+      expect(group.value).toEqual({child: {name: 'b', count: 0}});
+
+      child.fieldTree.count().value.set(1);
+      expect(group.value).toEqual({child: {name: 'b', count: 1}});
+
+      child.fieldTree.name().value.set('c');
+      expect(group.value).toEqual({child: {name: 'c', count: 1}});
+
+      child.fieldTree.count().value.set(2);
+      expect(group.value).toEqual({child: {name: 'c', count: 2}});
+    });
+
+    it('should return the same child fieldTree instance on repeated access', () => {
+      const child = createSignalFormControl({name: 'test', count: 0});
+
+      const name1 = child.fieldTree.name;
+      const name2 = child.fieldTree.name;
+
+      expect(name1 === name2).toBe(true);
+    });
+
     it('should propagate validity to parent FormGroup immediately', () => {
       const child = createSignalFormControl<string>('meow-meow', (p) => required(p));
       const group = new FormGroup({

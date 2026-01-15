@@ -462,6 +462,34 @@ describe('SignalFormControl', () => {
         /Imperatively marking as pending is not supported in signal forms/,
       );
     });
+
+    it('should throw error when setting dirty directly', () => {
+      const form = createSignalFormControl(10);
+      expect(() => ((form as any).dirty = true)).toThrowError(
+        /Setting dirty directly is not supported. Instead use markAsDirty\(\) or reset\(\)/,
+      );
+    });
+
+    it('should throw error when setting pristine directly', () => {
+      const form = createSignalFormControl(10);
+      expect(() => ((form as any).pristine = true)).toThrowError(
+        /Setting pristine directly is not supported. Instead use markAsPristine\(\) or reset\(\)/,
+      );
+    });
+
+    it('should throw error when setting touched directly', () => {
+      const form = createSignalFormControl(10);
+      expect(() => ((form as any).touched = true)).toThrowError(
+        /Setting touched directly is not supported. Instead use markAsTouched\(\) or reset\(\)/,
+      );
+    });
+
+    it('should throw error when setting untouched directly', () => {
+      const form = createSignalFormControl(10);
+      expect(() => ((form as any).untouched = true)).toThrowError(
+        /Setting untouched directly is not supported. Instead use markAsUntouched\(\) or reset\(\)/,
+      );
+    });
   });
 
   describe('callback registration', () => {

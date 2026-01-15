@@ -93,7 +93,7 @@ export class SignalFormControl<T> extends AbstractControl {
 
   /**
    * AbstractControl declares getters as properties, and TypeScript doesn't allow
-   * overriding a property with a getter, so we have to do it.
+   * overriding a property with a getter, so we have to do use define property.
    */
   private defineValueAndErrorsGetters(): void {
     Object.defineProperty(this, 'value', {
@@ -267,7 +267,6 @@ export class SignalFormControl<T> extends AbstractControl {
   }
 
   // Callbacks
-
   registerOnChange(fn: (value?: any, emitModelEvent?: boolean) => void): void {
     this.onChangeCallbacks.push(fn);
   }
@@ -304,25 +303,41 @@ export class SignalFormControl<T> extends AbstractControl {
     return this.fieldState.dirty();
   }
 
-  override set dirty(_: boolean) {} // No-op: state is derived from signal
+  override set dirty(_: boolean) {
+    throw unsupportedFeatureError(
+      'Setting dirty directly is not supported. Instead use markAsDirty().',
+    );
+  }
 
   override get pristine(): boolean {
     return !this.dirty;
   }
 
-  override set pristine(_: boolean) {} // No-op: state is derived from signal
+  override set pristine(_: boolean) {
+    throw unsupportedFeatureError(
+      'Setting pristine directly is not supported. Instead use reset().',
+    );
+  }
 
   override get touched(): boolean {
     return this.fieldState.touched();
   }
 
-  override set touched(_: boolean) {} // No-op: state is derived from signal
+  override set touched(_: boolean) {
+    throw unsupportedFeatureError(
+      'Setting touched directly is not supported. Instead use markAsTouched() or reset().',
+    );
+  }
 
   override get untouched(): boolean {
     return !this.touched;
   }
 
-  override set untouched(_: boolean) {} // No-op: state is derived from signal
+  override set untouched(_: boolean) {
+    throw unsupportedFeatureError(
+      'Setting untouched directly is not supported. Instead use reset().',
+    );
+  }
 
   override get valid(): boolean {
     return this.fieldState.valid();

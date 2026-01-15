@@ -33,7 +33,7 @@ describe('SignalFormControl in FormGroup', () => {
 
   it('should propagate patchValue updates from child to parent', () => {
     const form = createSignalFormControl(5);
-    const value = form.source;
+    const value = form.sourceValue;
     const group = new FormGroup({
       n: form,
     });
@@ -78,7 +78,7 @@ describe('SignalFormControl in FormGroup', () => {
 
   it('should update signal when parent setValue is called', () => {
     const form = createSignalFormControl(10);
-    const value = form.source;
+    const value = form.sourceValue;
     const group = new FormGroup({
       n: form,
     });
@@ -91,7 +91,7 @@ describe('SignalFormControl in FormGroup', () => {
 
   it('should update signal when parent patchValue is called', () => {
     const form = createSignalFormControl(10);
-    const value = form.source;
+    const value = form.sourceValue;
     const group = new FormGroup({
       n: form,
     });
@@ -104,7 +104,7 @@ describe('SignalFormControl in FormGroup', () => {
 
   it('should reset child value and state when parent reset is called', () => {
     const child = createSignalFormControl(10);
-    const value = child.source;
+    const value = child.sourceValue;
     const group = new FormGroup({
       n: child,
     });
@@ -240,7 +240,7 @@ describe('SignalFormControl in FormGroup', () => {
 
   it('should not notify parent when onlySelf is true', () => {
     const form = createSignalFormControl(10);
-    const value = form.source;
+    const value = form.sourceValue;
     const group = new FormGroup({
       n: form,
     });
@@ -304,6 +304,24 @@ describe('SignalFormControl in FormGroup', () => {
       expect(name1 === name2).toBe(true);
     });
 
+    it('should return the same fieldState instance on repeated calls', () => {
+      const child = createSignalFormControl({name: 'test', count: 0});
+
+      const state1 = child.fieldTree();
+      const state2 = child.fieldTree();
+
+      expect(state1 === state2).toBe(true);
+    });
+
+    it('should return the same child fieldState instance on repeated calls', () => {
+      const child = createSignalFormControl({name: 'test', count: 0});
+
+      const state1 = child.fieldTree.name();
+      const state2 = child.fieldTree.name();
+
+      expect(state1 === state2).toBe(true);
+    });
+
     describe('array fieldTree', () => {
       it('should access length property', () => {
         const child = createSignalFormControl(['a', 'b', 'c']);
@@ -326,6 +344,17 @@ describe('SignalFormControl in FormGroup', () => {
         child.fieldTree[1]().value.set('updated');
 
         expect(group.value).toEqual({child: ['a', 'updated', 'c']});
+      });
+
+      it('should iterate over object fields', () => {
+        const child = createSignalFormControl({x: 'a', y: 'b', z: 'c'});
+        const values: string[] = [];
+
+        for (const [, field] of child.fieldTree) {
+          values.push(field!().value());
+        }
+
+        expect(values).toEqual(['a', 'b', 'c']);
       });
     });
 

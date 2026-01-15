@@ -51,13 +51,38 @@ export type ValueUpdateOptions = {
  * This class provides a bridge between Signal Forms and Reactive Forms, allowing
  * signal-based controls to be used within a standard `FormGroup` or `FormArray`.
  *
+ * A control could be created using signal forms, and integrated with an existing FormGroup
+ * propagating all the statuses and validity.
+ *
+ * @usageNotes
+ *
+ * ### Basic usage
+ *
+ * ```angular-ts
+ * const form = new FormGroup({
+ *   // You can create SignalFormControl with signal form rules, and add it to a FormGroup.
+ *   name: new SignalFormControl('Alice', p => {
+ *     required(p);
+ *   }),
+ *   age: new FormControl(25),
+ * });
+ * ```
+ * In the template you can get the underlying `fieldTree` and bind it:
+ *
+ * ```angular-html
+ *  <form [formGroup]="form">
+ *    <input [formField]="nameControl.fieldTree" />
+ *    <input formControlName="age" />
+ *  </form>
+ * ```
+ *
  * @experimental
  */
 export class SignalFormControl<T> extends AbstractControl {
   /** Source FieldTree. */
   public readonly fieldTree: FieldTree<T>;
   /** The raw signal driving the control value. */
-  public readonly source: WritableSignal<T>;
+  public readonly sourceValue: WritableSignal<T>;
 
   private readonly fieldState: FieldState<T>;
   private pendingParentNotifications = 0;
@@ -75,12 +100,12 @@ export class SignalFormControl<T> extends AbstractControl {
     super(null, null);
 
     const [model, schema, opts] = normalizeFormArgs<T>([signal(value), schemaOrOptions, options]);
-    this.source = model;
+    this.sourceValue = model;
     const injector = opts?.injector ?? inject(Injector);
 
     const rawTree = schema
-      ? compatForm(this.source, schema, {injector})
-      : compatForm(this.source, {injector});
+      ? compatForm(this.sourceValue, schema, {injector})
+      : compatForm(this.sourceValue, {injector});
 
     this.fieldTree = wrapFieldTreeForSyncUpdates(rawTree, () =>
       this.parent?.updateValueAndValidity({sourceControl: this} as any),
@@ -97,14 +122,10 @@ export class SignalFormControl<T> extends AbstractControl {
    */
   private defineValueAndErrorsGetters(): void {
     Object.defineProperty(this, 'value', {
-      get: () => this.source(),
-      enumerable: true,
-      configurable: true,
+      get: () => this.sourceValue(),
     });
     Object.defineProperty(this, 'errors', {
       get: () => signalErrorsToValidationErrors(this.fieldState.errors()),
-      enumerable: true,
-      configurable: true,
     });
   }
 
@@ -112,7 +133,7 @@ export class SignalFormControl<T> extends AbstractControl {
     // Value changes
     effect(
       () => {
-        const value = this.source();
+        const value = this.sourceValue();
         this.notifyParentUnlessPending();
         this.valueChanges.emit(value);
         this.emitControlEvent(new ValueChangeEvent(value, this));
@@ -190,7 +211,7 @@ export class SignalFormControl<T> extends AbstractControl {
 
   private updateValue(value: any, options?: ValueUpdateOptions): void {
     const parent = this.scheduleParentUpdate(options);
-    this.source.set(value);
+    this.sourceValue.set(value);
     if (parent) {
       this.updateParentValueAndValidity(parent, options?.emitEvent);
     }
@@ -211,7 +232,7 @@ export class SignalFormControl<T> extends AbstractControl {
       value = value.value;
     }
 
-    const resetValue = value ?? this.source();
+    const resetValue = value ?? this.sourceValue();
     this.fieldState.reset(resetValue as any);
 
     if (value !== undefined) {
@@ -229,15 +250,10 @@ export class SignalFormControl<T> extends AbstractControl {
   }
 
   private scheduleParentUpdate(options?: ValueUpdateOptions): FormGroup | FormArray | null {
-    if (options?.onlySelf) {
+    const parent = options?.onlySelf ? null : this.parent;
+    if (options?.onlySelf || parent) {
       this.pendingParentNotifications++;
-      return null;
     }
-    const parent = this.parent;
-    if (!parent) {
-      return null;
-    }
-    this.pendingParentNotifications++;
     return parent;
   }
 
@@ -370,21 +386,32 @@ export class SignalFormControl<T> extends AbstractControl {
   }
 
   override markAsPristine(opts?: {onlySelf?: boolean}): void {
-    this.fieldState.reset(this.source());
+    const wasTouched = this.touched;
+    this.fieldState.reset(this.sourceValue());
+    if (wasTouched) {
+      this.fieldState.markAsTouched();
+    }
     this.propagateToParent(opts, (parent) => parent.markAsPristine(opts));
   }
 
   override markAsUntouched(opts?: {onlySelf?: boolean}): void {
-    this.fieldState.reset(this.source()); // reset() clears touched internally
+    const wasDirty = this.dirty;
+    this.fieldState.reset(this.sourceValue());
+    if (wasDirty) {
+      this.fieldState.markAsDirty();
+    }
     this.propagateToParent(opts, (parent) => parent.markAsUntouched(opts));
   }
 
   override updateValueAndValidity(_opts?: Object): void {} // No-op: validity is derived from signal
 
   /** @internal */
-  _updateValue(): void {}
+  _updateValue(): void {} // No-op: Artifact from AbstractControl.
 
-  /** @internal */
+  /**
+   * @internal
+   * This is a noop, as there are no children.
+   **/
   _forEachChild(_cb: (c: AbstractControl) => void): void {}
 
   /** @internal */
@@ -460,52 +487,58 @@ export class SignalFormControl<T> extends AbstractControl {
   }
 }
 
-function wrapFieldTreeForSyncUpdates<T>(tree: FieldTree<T>, onUpdate: () => void): FieldTree<T> {
-  const treeCache = new WeakMap<FieldTree<unknown>, FieldTree<unknown>>();
-  const stateCache = new WeakMap<FieldState<unknown>, FieldState<unknown>>();
+class CachingWeakMap<K extends object, V> {
+  private readonly map = new WeakMap<K, V>();
 
-  const wrapTree = (t: FieldTree<unknown>): FieldTree<unknown> => {
-    const cached = treeCache.get(t);
+  getOrCreate(key: K, create: () => V): V {
+    const cached = this.map.get(key);
     if (cached) {
       return cached;
     }
-    const wrapped = new Proxy(t, {
-      // When getting a prop, wrap FieldTree if it's a function
-      get(target, prop, receiver) {
-        const val = Reflect.get(target, prop, receiver);
-        // Some of FieldTree children are not function, e.g. length.
-        if (typeof val === 'function' && typeof prop === 'string') {
-          return wrapTree(val);
-        }
-        return val;
+    const value = create();
+    this.map.set(key, value);
+    return value;
+  }
+}
+
+function wrapFieldTreeForSyncUpdates<T>(tree: FieldTree<T>, onUpdate: () => void): FieldTree<T> {
+  const treeCache = new CachingWeakMap<FieldTree<unknown>, FieldTree<unknown>>();
+  const stateCache = new CachingWeakMap<FieldState<unknown>, FieldState<unknown>>();
+
+  const wrapState = (state: FieldState<unknown>): FieldState<unknown> => {
+    const {value} = state;
+    const wrappedValue = Object.assign((...a: unknown[]) => (value as Function)(...a), {
+      set: (v: unknown) => {
+        value.set(v);
+        onUpdate();
       },
-      // When calling a function, wrap it
-      apply(target, _, args) {
-        const state: FieldState<unknown> = (target as Function)(...args);
-        const cachedState = stateCache.get(state);
-        if (cachedState) {
-          return cachedState;
-        }
-        const {value} = state;
-        const wrappedValue = Object.assign((...a: unknown[]) => (value as Function)(...a), {
-          set: (v: unknown) => {
-            value.set(v);
-            onUpdate();
-          },
-          update: (fn: (v: unknown) => unknown) => {
-            value.update(fn);
-            onUpdate();
-          },
-        }) as WritableSignal<unknown>;
-        const wrappedState: FieldState<unknown> = Object.create(state, {
-          value: {get: () => wrappedValue},
-        });
-        stateCache.set(state, wrappedState);
-        return wrappedState;
+      update: (fn: (v: unknown) => unknown) => {
+        value.update(fn);
+        onUpdate();
       },
-    }) as FieldTree<unknown>;
-    treeCache.set(t, wrapped);
-    return wrapped;
+    }) as WritableSignal<unknown>;
+    return Object.create(state, {value: {get: () => wrappedValue}});
+  };
+
+  const wrapTree = (t: FieldTree<unknown>): FieldTree<unknown> => {
+    return treeCache.getOrCreate(t, () => {
+      return new Proxy(t, {
+        // When getting a prop, wrap FieldTree if it's a function
+        get(target, prop, receiver) {
+          const val = Reflect.get(target, prop, receiver);
+          // Some of FieldTree children are not function, e.g. length.
+          if (typeof val === 'function' && typeof prop === 'string') {
+            return wrapTree(val);
+          }
+          return val;
+        },
+        // When calling the tree, wrap the returned state
+        apply(target, _, args) {
+          const state: FieldState<unknown> = (target as Function)(...args);
+          return stateCache.getOrCreate(state, () => wrapState(state));
+        },
+      }) as FieldTree<unknown>;
+    });
   };
 
   return wrapTree(tree) as FieldTree<T>;

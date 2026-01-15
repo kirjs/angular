@@ -46,7 +46,7 @@ describe('SignalFormControl (web)', () => {
       input.value = 'view';
       input.dispatchEvent(new Event('input'));
     });
-    expect(fixture.componentInstance.signalControl.source()).toBe('view');
+    expect(fixture.componentInstance.signalControl.sourceValue()).toBe('view');
   });
 
   it('binds inside nested FormGroup via formGroupName', () => {
@@ -84,7 +84,7 @@ describe('SignalFormControl (web)', () => {
       input.dispatchEvent(new Event('input'));
     });
 
-    expect(fixture.componentInstance.signalControl.source()).toBe('updated');
+    expect(fixture.componentInstance.signalControl.sourceValue()).toBe('updated');
     expect(fixture.componentInstance.group.dirty).toBe(true);
   });
 

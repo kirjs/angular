@@ -172,6 +172,19 @@ describe('SignalFormControl', () => {
       expect(form.dirty).toBe(false);
     });
 
+    it('should preserve touched state when markAsPristine is called', () => {
+      const form = createSignalFormControl(10);
+
+      form.markAsDirty();
+      form.markAsTouched();
+      expect(form.dirty).toBe(true);
+      expect(form.touched).toBe(true);
+
+      form.markAsPristine();
+      expect(form.dirty).toBe(false);
+      expect(form.touched).toBe(true);
+    });
+
     it('should support markAsUntouched', () => {
       const form = createSignalFormControl(10);
 
@@ -180,6 +193,19 @@ describe('SignalFormControl', () => {
 
       form.markAsUntouched();
       expect(form.touched).toBe(false);
+    });
+
+    it('should preserve dirty state when markAsUntouched is called', () => {
+      const form = createSignalFormControl(10);
+
+      form.markAsDirty();
+      form.markAsTouched();
+      expect(form.dirty).toBe(true);
+      expect(form.touched).toBe(true);
+
+      form.markAsUntouched();
+      expect(form.touched).toBe(false);
+      expect(form.dirty).toBe(true);
     });
 
     it('should propagate dirty status to parent FormGroup immediately', () => {
@@ -193,6 +219,16 @@ describe('SignalFormControl', () => {
       expect(group.dirty).toBe(true);
     });
 
+    it('should not propagate dirty status to parent when onlySelf is true', () => {
+      const child = createSignalFormControl('meow');
+      const group = new FormGroup({child});
+
+      child.markAsDirty({onlySelf: true});
+
+      expect(child.dirty).toBe(true);
+      expect(group.dirty).toBe(false);
+    });
+
     it('should propagate touched status to parent FormGroup immediately', () => {
       const child = createSignalFormControl('meow');
       const group = new FormGroup({
@@ -201,6 +237,42 @@ describe('SignalFormControl', () => {
 
       expect(group.touched).toBe(false);
       child.markAsTouched();
+      expect(group.touched).toBe(true);
+    });
+
+    it('should not propagate touched status to parent when onlySelf is true', () => {
+      const child = createSignalFormControl('meow');
+      const group = new FormGroup({child});
+
+      child.markAsTouched({onlySelf: true});
+
+      expect(child.touched).toBe(true);
+      expect(group.touched).toBe(false);
+    });
+
+    it('should not propagate pristine status to parent when onlySelf is true', () => {
+      const child = createSignalFormControl('meow');
+      const group = new FormGroup({child});
+
+      group.markAsDirty();
+      expect(group.dirty).toBe(true);
+
+      child.markAsPristine({onlySelf: true});
+
+      expect(child.pristine).toBe(true);
+      expect(group.dirty).toBe(true);
+    });
+
+    it('should not propagate untouched status to parent when onlySelf is true', () => {
+      const child = createSignalFormControl('meow');
+      const group = new FormGroup({child});
+
+      group.markAsTouched();
+      expect(group.touched).toBe(true);
+
+      child.markAsUntouched({onlySelf: true});
+
+      expect(child.untouched).toBe(true);
       expect(group.touched).toBe(true);
     });
 
@@ -338,7 +410,7 @@ describe('SignalFormControl', () => {
 
       form.reset('buterbrod');
       expect(form.value).toBe('buterbrod');
-      expect(form.source()).toBe('buterbrod');
+      expect(form.sourceValue()).toBe('buterbrod');
       expect(form.touched).toBe(false);
       expect(form.dirty).toBe(false);
     });

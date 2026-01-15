@@ -370,12 +370,12 @@ export class SignalFormControl<T> extends AbstractControl {
   }
 
   override markAsPristine(opts?: {onlySelf?: boolean}): void {
-    this.fieldState.reset(this.source() as any); // reset() clears pristine internally
+    this.fieldState.reset(this.source());
     this.propagateToParent(opts, (parent) => parent.markAsPristine(opts));
   }
 
   override markAsUntouched(opts?: {onlySelf?: boolean}): void {
-    this.fieldState.reset(this.source() as any); // reset() clears touched internally
+    this.fieldState.reset(this.source()); // reset() clears touched internally
     this.propagateToParent(opts, (parent) => parent.markAsUntouched(opts));
   }
 

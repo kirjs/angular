@@ -466,14 +466,14 @@ describe('SignalFormControl', () => {
     it('should throw error when setting dirty directly', () => {
       const form = createSignalFormControl(10);
       expect(() => ((form as any).dirty = true)).toThrowError(
-        /Setting dirty directly is not supported. Instead use markAsDirty\(\) or reset\(\)/,
+        /Setting dirty directly is not supported. Instead use markAsDirty\(\)/,
       );
     });
 
     it('should throw error when setting pristine directly', () => {
       const form = createSignalFormControl(10);
       expect(() => ((form as any).pristine = true)).toThrowError(
-        /Setting pristine directly is not supported. Instead use markAsPristine\(\) or reset\(\)/,
+        /Setting pristine directly is not supported. Instead use reset\(\)/,
       );
     });
 
@@ -487,7 +487,7 @@ describe('SignalFormControl', () => {
     it('should throw error when setting untouched directly', () => {
       const form = createSignalFormControl(10);
       expect(() => ((form as any).untouched = true)).toThrowError(
-        /Setting untouched directly is not supported. Instead use markAsUntouched\(\) or reset\(\)/,
+        /Setting untouched directly is not supported. Instead use reset\(\)/,
       );
     });
   });

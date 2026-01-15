@@ -461,49 +461,54 @@ export class SignalFormControl<T> extends AbstractControl {
 }
 
 function wrapFieldTreeForSyncUpdates<T>(tree: FieldTree<T>, onUpdate: () => void): FieldTree<T> {
-  const treeCache = new WeakMap<object, object>();
-  const stateCache = new WeakMap<object, object>();
+  const treeCache = new WeakMap<FieldTree<unknown>, FieldTree<unknown>>();
+  const stateCache = new WeakMap<FieldState<unknown>, FieldState<unknown>>();
 
-  const wrapTree = (t: object): object => {
+  const wrapTree = (t: FieldTree<unknown>): FieldTree<unknown> => {
     const cached = treeCache.get(t);
     if (cached) {
       return cached;
     }
     const wrapped = new Proxy(t, {
-      get(target, prop) {
-        const val = (target as any)[prop];
+      // When getting a prop, wrap FieldTree if it's a function
+      get(target, prop, receiver) {
+        const val = Reflect.get(target, prop, receiver);
+        // Some of FieldTree children are not function, e.g. length.
         if (typeof val === 'function' && typeof prop === 'string') {
           return wrapTree(val);
         }
         return val;
       },
+      // When calling a function, wrap it
       apply(target, _, args) {
-        const state = (target as Function)(...args);
+        const state: FieldState<unknown> = (target as Function)(...args);
         const cachedState = stateCache.get(state);
         if (cachedState) {
           return cachedState;
         }
         const {value} = state;
-        const wrappedValue = Object.assign((...a: any[]) => value(...a), {
-          set: (v: T) => {
+        const wrappedValue = Object.assign((...a: unknown[]) => (value as Function)(...a), {
+          set: (v: unknown) => {
             value.set(v);
             onUpdate();
           },
-          update: (fn: (v: T) => T) => {
+          update: (fn: (v: unknown) => unknown) => {
             value.update(fn);
             onUpdate();
           },
-        }) as WritableSignal<any>;
-        const wrappedState = Object.create(state, {value: {get: () => wrappedValue}});
+        }) as WritableSignal<unknown>;
+        const wrappedState: FieldState<unknown> = Object.create(state, {
+          value: {get: () => wrappedValue},
+        });
         stateCache.set(state, wrappedState);
         return wrappedState;
       },
-    });
+    }) as FieldTree<unknown>;
     treeCache.set(t, wrapped);
     return wrapped;
   };
 
-  return wrapTree(tree) as any;
+  return wrapTree(tree) as FieldTree<T>;
 }
 
 function isFormControlState(formState: unknown): formState is {value: any; disabled: boolean} {

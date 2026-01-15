@@ -304,6 +304,31 @@ describe('SignalFormControl in FormGroup', () => {
       expect(name1 === name2).toBe(true);
     });
 
+    describe('array fieldTree', () => {
+      it('should access length property', () => {
+        const child = createSignalFormControl(['a', 'b', 'c']);
+
+        expect(child.fieldTree.length).toBe(3);
+      });
+
+      it('should access element children via index', () => {
+        const child = createSignalFormControl(['first', 'second', 'third']);
+
+        expect(child.fieldTree[0]().value()).toBe('first');
+        expect(child.fieldTree[1]().value()).toBe('second');
+        expect(child.fieldTree[2]().value()).toBe('third');
+      });
+
+      it('should set element value via index', () => {
+        const child = createSignalFormControl(['a', 'b', 'c']);
+        const group = new FormGroup({child});
+
+        child.fieldTree[1]().value.set('updated');
+
+        expect(group.value).toEqual({child: ['a', 'updated', 'c']});
+      });
+    });
+
     it('should propagate validity to parent FormGroup immediately', () => {
       const child = createSignalFormControl<string>('meow-meow', (p) => required(p));
       const group = new FormGroup({
